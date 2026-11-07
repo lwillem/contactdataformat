@@ -457,6 +457,15 @@ decisions:
   - id: Q6
     topic: "Boolean coding (strict TRUE/FALSE) and missing tokens"
     where: "types.boolean.values; options.missing_token_aliases"
+  - id: Q31
+    topic: "Optional columns (age interval, cnt_age_multi, duration_exact)"
+    where: "files.<id>.columns[].required"
+  - id: Q32
+    topic: "Boolean coding: TRUE/FALSE with 0/1 accepted"
+    where: "types.boolean.values; types.boolean.true_values"
+  - id: Q34
+    topic: "Open age bands need an explicit upper bound"
+    where: "options.allow_open_age_interval"
   - id: Q14
     topic: "Severity policy and column order"
     where: "rules.<id>.severity; options.column_order"

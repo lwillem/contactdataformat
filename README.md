@@ -6,8 +6,8 @@ layout read by the [socialmixr](https://github.com/epiforecasts/socialmixr)
 package and the SOCRATES tools.
 
 > **Status: first working version for guideline 1.0 (draft).** The schema
-> follows the recommended choices of the guideline review (e.g. `cont_id`,
-> `cnt_otherplace`, `part_age_exact`); open choices are listed by
+> follows the recommended choices of the guideline review (e.g. `cnt_id` with
+> legacy alias `cont_id`, `cnt_otherplace`, `part_age_exact`); open choices are listed by
 > `open_decisions()` and can be changed in the schema. The package is
 > developed standalone and may later move into `contactsurveys` or `socialmixr`.
 

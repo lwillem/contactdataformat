@@ -17,7 +17,7 @@ test_that("package MAJOR.MINOR equals the newest guideline version", {
 
 test_that("the rule catalogue lists classes, severities and implementation", {
   rules <- list_rules()
-  expect_true(all(sprintf("R%02d", 1:39) %in% rules$rule_id))
+  expect_true(all(sprintf("R%02d", 1:40) %in% rules$rule_id))
   expect_true(all(rules$class %in% c("A", "X", "H", "M")))
   expect_true(all(rules$severity %in% c("error", "warning", "note", "manual")))
   implemented <- rules$rule_id[rules$implemented]
@@ -39,8 +39,10 @@ test_that("open decisions point to existing schema keys", {
 test_that("recommended guideline choices are encoded in the schema", {
   schema <- read_schema()
   contact <- schema_column_names(schema, "contact_common")
-  expect_true(all(c("cont_id", "cnt_otherplace") %in% contact))
-  expect_false(any(c("cnt_id", "cnt_others", "sday_id") %in% contact))
+  expect_true(all(c("cnt_id", "cnt_otherplace") %in% contact))
+  expect_false(any(c("cont_id", "cnt_others", "sday_id") %in% contact))
+  spec <- schema_column(schema, "contact_common", "cnt_id")
+  expect_equal(unlist(spec$aliases), "cont_id")
   expect_true("part_age_exact" %in%
                 schema_column_names(schema, "participant_common"))
   expect_equal(schema$files$sday$key, "part_id")

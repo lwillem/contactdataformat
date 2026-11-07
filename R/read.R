@@ -62,7 +62,7 @@ read_socrates <- function(path, nametag = NULL, schema = "latest") {
     read_metadata(file.path(path, metadata_file))
   }
 
-  structure(
+  ctx <- structure(
     list(
       schema = schema, source = "folder", path = path, nametag = tag,
       nametag_candidates = names(inferred), tables = tables,
@@ -75,6 +75,7 @@ read_socrates <- function(path, nametag = NULL, schema = "latest") {
     ),
     class = "socrates_data"
   )
+  apply_aliases(ctx)
 }
 
 #' @export
@@ -82,6 +83,53 @@ print.socrates_data <- function(x, ...) {
   cli::cli_text("{.cls socrates_data} for NAMETAG {.val {x$nametag}}")
   cli::cli_text("Tables read: {.val {names(x$tables)}}")
   invisible(x)
+}
+
+# Accepted legacy column names (schema `aliases`, e.g. `cont_id` for `cnt_id`):
+# rename them to the canonical name so that all rules work on one spelling,
+# and remember the spelling used (`ctx$renamed`, for R40 and for messages).
+# Extra files are only renamed for their key column.
+apply_aliases <- function(ctx) {
+  schema <- ctx$schema
+  renamed <- list()
+  rename_in <- function(tab, specs) {
+    used <- character()
+    for (spec in specs) {
+      alias <- intersect(unlist(spec$aliases), names(tab))
+      if (!spec$name %in% names(tab) && length(alias) == 1) {
+        names(tab)[names(tab) == alias] <- spec$name
+        used[[spec$name]] <- alias
+      }
+    }
+    list(table = tab, used = used)
+  }
+  for (id in names(ctx$tables)) {
+    kind <- schema$files[[id]]$kind
+    specs <- if (identical(kind, "extra")) {
+      common <- schema$files[[id]]$common
+      Filter(function(col) identical(col$name, schema_key(schema, id)),
+             schema_columns(schema, common))
+    } else {
+      schema_columns(schema, id)
+    }
+    out <- rename_in(ctx$tables[[id]], specs)
+    ctx$tables[[id]] <- out$table
+    if (length(out$used) > 0) renamed[[id]] <- out$used
+  }
+  # the dictionary may document either spelling
+  if (!is.null(ctx$dictionary$data)) {
+    data <- ctx$dictionary$data
+    for (id in names(renamed)) {
+      for (canonical in names(renamed[[id]])) {
+        hit <- data$file == id & data$variable == renamed[[id]][[canonical]] &
+          !(data$file == id & data$variable == canonical)
+        data$variable[hit] <- canonical
+      }
+    }
+    ctx$dictionary$data <- data
+  }
+  ctx$renamed <- renamed
+  ctx
 }
 
 known_suffixes <- function(schema) {

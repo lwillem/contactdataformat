@@ -41,13 +41,14 @@ status.
 
 ## A faulty dataset
 
-Here the contact ID is called `cnt_id` (the guideline draft used three
-different names), one contact has all locations `FALSE`, and a ZIP code ended
+Here the contact ID is called `contact_id` (the guideline draft used three
+different names; the canonical name is `cnt_id`, and the legacy spelling
+`cont_id` is accepted as long as a record uses one spelling in all its files), one contact has all locations `FALSE`, and a ZIP code ended
 up in the participant extra file.
 
 ```{r faulty}
 tables <- example_survey()
-names(tables$contact)[names(tables$contact) == "cont_id"] <- "cnt_id"
+names(tables$contact)[names(tables$contact) == "cnt_id"] <- "contact_id"
 tables$contact[1, c("cnt_home", "cnt_work", "cnt_school", "cnt_transport",
                     "cnt_leisure", "cnt_otherplace")] <- FALSE
 tables$participant_extra$zip_code <- "1000"

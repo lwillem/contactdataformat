@@ -3,7 +3,8 @@
 # Columns that appear in any table that socialmixr treats as a main table or
 # merges into one
 main_table_columns <- function(ctx) {
-  unique(unlist(lapply(ctx$tables, names)))
+  unique(c(unlist(lapply(ctx$tables, names)),
+           unlist(ctx$renamed, use.names = FALSE)))
 }
 
 rule_r34 <- function(ctx) {
@@ -93,7 +94,8 @@ id_class <- function(x) {
 
 rule_r38 <- function(ctx) {
   out <- list()
-  for (key in c("part_id", "hh_id", "cont_id")) {
+  keys <- c("part_id", "hh_id", schema_key(ctx$schema, "contact_common"))
+  for (key in keys) {
     classes <- list()
     for (id in names(ctx$tables)) {
       if (key %in% names(ctx$tables[[id]])) {
@@ -139,6 +141,39 @@ rule_r39 <- function(ctx) {
       message = paste0("`diary_weight` has missing values; weights without ",
                        "`NA` are required (or drop the column).")
     )
+  }
+  bind_findings(out)
+}
+
+# One spelling of a key per record: an extra file that spells the key
+# differently from its common file shares only other columns with it, so
+# socialmixr silently drops the extra columns.
+rule_r40 <- function(ctx) {
+  schema <- ctx$schema
+  out <- list()
+  spelling <- function(id, key) {
+    ctx$renamed[[id]][[key]] %||% key
+  }
+  for (id in schema_ids(schema, "extra")) {
+    common <- schema$files[[id]]$common
+    key <- schema_key(schema, id)
+    if (!has_table(ctx, id) || !has_table(ctx, common) ||
+          !has_column(ctx, id, key) || !has_column(ctx, common, key)) {
+      next
+    }
+    in_common <- spelling(common, key)
+    in_extra <- spelling(id, key)
+    if (!identical(in_common, in_extra)) {
+      out[[length(out) + 1]] <- finding(
+        "R40", file = file_label(ctx, id), column = key,
+        message = paste0(
+          "The key is spelled `", in_common, "` in ", file_label(ctx, common),
+          " but `", in_extra, "` in ", file_label(ctx, id),
+          ". Use one spelling per record, otherwise socialmixr cannot join ",
+          "the two files and silently drops the extra columns."
+        )
+      )
+    }
   }
   bind_findings(out)
 }

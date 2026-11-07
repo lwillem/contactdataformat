@@ -100,3 +100,78 @@ test_that("metadata is a YAML file, never JSON", {
   expect_true(file.exists(file.path(dir, "DOE_2012_BELGIUM_metadata.yaml")))
   expect_length(list.files(dir, pattern = "\\.json$"), 0)
 })
+
+# Contact ID: cnt_id canonical, cont_id accepted legacy alias (R40) ------------
+
+rename_contact_key <- function(tables, from, to, which = c("contact", "contact_extra")) {
+  for (name in which) {
+    names(tables[[name]])[names(tables[[name]]) == from] <- to
+  }
+  tables
+}
+
+test_that("a dataset with cnt_id passes", {
+  tables <- valid_survey()
+  expect_true("cnt_id" %in% names(tables$contact))
+  expect_clean(check_survey(tables))
+  expect_clean(check_contact_data(survey_dir(tables), quiet = TRUE))
+})
+
+test_that("a dataset with the legacy cont_id passes in memory and on disk", {
+  legacy <- rename_contact_key(valid_survey(), "cnt_id", "cont_id")
+  # the dictionary may document either spelling
+  legacy$dictionary$variable[legacy$dictionary$variable == "cnt_id"] <- "cont_id"
+  report <- check_survey(legacy)
+  expect_clean(report)
+  expect_hit(report, "R05", "note")
+  expect_msg(report, "R05", "legacy spelling")
+  expect_clean(check_contact_data(survey_dir(legacy), quiet = TRUE))
+})
+
+test_that("legacy cont_id: key rules still apply", {
+  legacy <- rename_contact_key(valid_survey(), "cnt_id", "cont_id")
+  legacy$contact$cont_id[3] <- legacy$contact$cont_id[2]
+  report <- check_survey(legacy)
+  expect_hit(report, "R16")
+  expect_equal(only_rule(report, "R16")$column[1], "cnt_id")
+})
+
+test_that("R40: a mixed pair of spellings is an error", {
+  mixed <- rename_contact_key(valid_survey(), "cnt_id", "cont_id", "contact")
+  report <- check_survey(mixed)
+  expect_hit(report, "R40")
+  expect_msg(report, "R40", "cont_id")
+  expect_false(report$passed)
+
+  other_way <- rename_contact_key(valid_survey(), "cnt_id", "cont_id",
+                                  "contact_extra")
+  expect_hit(check_survey(other_way), "R40")
+
+  # also when the files are read from disk
+  expect_hit(check_contact_data(survey_dir(mixed), quiet = TRUE), "R40")
+
+  # the same spelling twice is fine
+  expect_false("R40" %in% hits(check_survey(valid_survey())))
+})
+
+test_that("both cnt_id and cont_id in one file is not an accepted alias use", {
+  both <- valid_survey()
+  both$contact$cont_id <- both$contact$cnt_id
+  expect_hit(check_survey(both), "R05")
+})
+
+test_that("part_age is an accepted alias of part_age_exact", {
+  tables <- valid_survey()
+  names(tables$participant)[names(tables$participant) == "part_age_exact"] <- "part_age"
+  report <- check_survey(tables)
+  expect_false("R05" %in% hits(report, "error"))
+  expect_msg(report, "R05", "legacy spelling")
+})
+
+test_that("cnt_otherplace stays the canonical name, cnt_others is an error", {
+  tables <- valid_survey()
+  names(tables$contact)[names(tables$contact) == "cnt_otherplace"] <- "cnt_others"
+  report <- check_survey(tables)
+  expect_hit(report, "R05")
+  expect_msg(report, "R05", "cnt_others")
+})

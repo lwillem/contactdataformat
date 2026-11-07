@@ -3,15 +3,15 @@ test_that("R21: contact count plausibility", {
   many <- tables
   extra <- data.frame(
     part_id = "P001",
-    cont_id = sprintf("X%03d", 1:120),
+    cnt_id = sprintf("X%03d", 1:120),
     stringsAsFactors = FALSE
   )
   template <- many$contact[rep(1, 120), ]
   template$part_id <- "P001"
-  template$cont_id <- extra$cont_id
+  template$cnt_id <- extra$cnt_id
   many$contact <- rbind(many$contact, template)
   many$contact_extra <- rbind(many$contact_extra,
-                              data.frame(cont_id = extra$cont_id,
+                              data.frame(cnt_id = extra$cnt_id,
                                          cnt_imputed = FALSE))
   report <- check_survey(many)
   expect_hit(report, "R21", "warning")
@@ -19,8 +19,8 @@ test_that("R21: contact count plausibility", {
 
   zero <- tables
   zero$contact <- zero$contact[zero$contact$part_id %in% zero$participant$part_id[1:10], ]
-  zero$contact_extra <- zero$contact_extra[zero$contact_extra$cont_id %in%
-                                             zero$contact$cont_id, ]
+  zero$contact_extra <- zero$contact_extra[zero$contact_extra$cnt_id %in%
+                                             zero$contact$cnt_id, ]
   expect_msg(check_survey(zero), "R21", "no contact")
 
   imputed <- tables

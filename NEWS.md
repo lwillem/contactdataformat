@@ -19,6 +19,11 @@
   of a record as its citation), and record-hygiene rules R34 (CSV files that
   socialmixr would merge), R35 (merge simulation, with `smoke_test = TRUE`),
   R38 (identifier types) and R39 (`diary_weight`) are implemented.
+* Contact ID: `cnt_id` is canonical and `cont_id` is an accepted legacy alias
+  (also `part_age` for `part_age_exact`); the schema `aliases` field lists
+  accepted spellings, `common_mistakes` only gives hints. New rule R40: a
+  record must use one spelling of the contact ID in `contact_common` and
+  `contact_extra`.
 * Catalogued but not yet implemented: R28-R33 (content of a restricted
   geography file), R36 (Zenodo record metadata, needs network) and R37
   (silent-failure columns, currently covered by R05).

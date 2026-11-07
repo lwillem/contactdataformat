@@ -191,7 +191,7 @@ rule_r05 <- function(ctx) {
     if (length(missing) > 0) {
       hints <- vapply(missing, function(col) {
         spec <- schema_column(schema, id, col)
-        found <- intersect(unlist(spec$aliases), actual)
+        found <- intersect(unlist(spec$common_mistakes), actual)
         if (length(found) == 0) "" else paste0(" (found `", found[1], "`)")
       }, character(1))
       out[[length(out) + 1]] <- finding(
@@ -214,6 +214,14 @@ rule_r05 <- function(ctx) {
           collapse_names(extra),
           ". Move survey-specific variables to the extra file."
         )
+      )
+    }
+    for (canonical in names(ctx$renamed[[id]])) {
+      out[[length(out) + 1]] <- finding(
+        "R05", variant = "alias", file = file, column = canonical,
+        message = paste0("`", ctx$renamed[[id]][[canonical]], "` is the ",
+                         "legacy spelling of `", canonical, "`; accepted, ",
+                         "but use one spelling in all files of the record.")
       )
     }
     ordered <- identical(schema$options$column_order, "strict")

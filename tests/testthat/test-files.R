@@ -97,10 +97,10 @@ test_that("R05: common files have exactly the specified columns in order", {
   tables <- valid_survey()
 
   renamed <- tables
-  names(renamed$contact)[names(renamed$contact) == "cont_id"] <- "cnt_id"
+  names(renamed$contact)[names(renamed$contact) == "cnt_id"] <- "contact_id"
   report <- check_survey(renamed)
   expect_hit(report, "R05")
-  expect_msg(report, "R05", "cnt_id")
+  expect_msg(report, "R05", "contact_id")
 
   dropped <- tables
   dropped$contact$phys_contact <- NULL
@@ -156,6 +156,6 @@ test_that("R06: extra files match the common files one-to-one", {
   expect_hit(check_survey(nokey), "R06")
 
   shared <- tables
-  shared$participant_extra$cont_id <- "x"
+  shared$participant_extra$cnt_id <- "x"
   expect_hit(check_survey(shared), "R06", "warning")
 })

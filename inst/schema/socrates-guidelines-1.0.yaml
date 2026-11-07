@@ -7,8 +7,9 @@
 # edited file to the checker with `check_contact_data(path, schema = "<file>")`.
 #
 # Status: guideline version 1.0 DRAFT. It follows the recommended choices of
-# REVIEW_guidelines_vs_flanders2010.md (P1-P11, section 6A.7/6A.8): `cont_id`,
-# `cnt_otherplace`, `part_age_exact`, survey-day file keyed by `part_id`, no
+# REVIEW_guidelines_vs_flanders2010.md (P1-P11, section 6A.2a/6A.7/6A.8):
+# `cnt_id` (legacy alias `cont_id`), `cnt_otherplace`, `part_age_exact`
+# (alias `part_age`), survey-day file keyed by `part_id`, no
 # `sday_id` in the contact file, TRUE/FALSE booleans (0/1 accepted), UTF-8,
 # optional columns may be absent, column order not enforced, metadata as YAML
 # (socialmixr reads the first .json file of a record as its citation).
@@ -103,19 +104,20 @@ files:
         type: id
         nullable: false
         unique: true
-        aliases: [participant_id, partid, local_id, global_id]
+        common_mistakes: [participant_id, partid, local_id, global_id]
         description: "Participant (diary) identifier; primary key"
       - name: hh_id
         type: id
         nullable: true   # P5/Q3: set to false to require a household id
-        aliases: [household_id]
+        common_mistakes: [household_id]
         description: "Household identifier; NA if not collected"
       - name: part_age_exact
         type: integer
         nullable: true
         range: [0, 110]
         range_rule: R10
-        aliases: [part_age, participant_age]
+        aliases: [part_age]
+        common_mistakes: [participant_age]
         description: "Exact age in completed years; NA if not exact"
       - name: part_age_est_min
         required: false
@@ -135,7 +137,7 @@ files:
         type: string
         nullable: true
         enum: [F, M, O]
-        aliases: [participant_gender, part_sex]
+        common_mistakes: [participant_gender, part_sex]
         description: "F, M or O (other); NA if not collected"
     foreign_keys:
       - column: hh_id
@@ -155,25 +157,28 @@ files:
     kind: common
     entity: contact
     required: true
-    key: cont_id
+    key: cnt_id
     description: "Contact-level information, one record per reported contact"
     columns:
       - name: part_id
         type: id
         nullable: false
-        aliases: [participant_id, local_id]
+        common_mistakes: [participant_id, local_id]
         description: "Participant identifier; foreign key to participant file"
-      - name: cont_id
+      - name: cnt_id
         type: id
         nullable: false
         unique: true
-        aliases: [cnt_id, contact_id]
-        description: "Contact identifier; primary key"
+        # Accepted legacy spelling (polymod, Flanders v1.2, CoMix). A record
+        # must use one spelling in all its files (R40).
+        aliases: [cont_id]
+        common_mistakes: [contact_id]
+        description: "Contact identifier; primary key; links common and extra"
       - name: cnt_gender
         type: string
         nullable: true
         enum: [F, M, O]
-        aliases: [cnt_sex]
+        common_mistakes: [cnt_sex]
         description: "Gender of the contact: F, M, O; NA if not collected"
       - name: cnt_age_exact
         type: integer
@@ -187,7 +192,7 @@ files:
         nullable: true
         range: [0, 110]
         range_rule: R10
-        aliases: [cnt_age_l]
+        common_mistakes: [cnt_age_l]
         description: "Lower bound of estimated contact age (inclusive)"
       - name: cnt_age_est_max
         required: false
@@ -195,7 +200,7 @@ files:
         nullable: true
         range: [0, 110]
         range_rule: R10
-        aliases: [cnt_age_r]
+        common_mistakes: [cnt_age_r]
         description: "Upper bound of estimated contact age (inclusive)"
       - name: cnt_age_multi
         required: false
@@ -232,14 +237,14 @@ files:
         type: boolean
         nullable: true
         group: location
-        aliases: [cnt_others, cnt_other]
+        common_mistakes: [cnt_others, cnt_other]
         description: "Contact at any other location"
       - name: frequency_multi
         type: code
         nullable: true
         codes_in_dictionary: true
         recommended_codes: ["1", "2", "3", "4", "5"]
-        aliases: [cnt_frequency]
+        common_mistakes: [cnt_frequency]
         description: "Frequency category (1 daily ... 5 first time; P10)"
       - name: duration_exact
         required: false
@@ -252,12 +257,12 @@ files:
         nullable: true
         codes_in_dictionary: true
         recommended_codes: ["1", "2", "3", "4", "5"]
-        aliases: [cnt_duration]
+        common_mistakes: [cnt_duration]
         description: "Duration category (1 <5 min ... 5 >=4 h; P10)"
       - name: phys_contact
         type: boolean
         nullable: true
-        aliases: [cnt_touch]
+        common_mistakes: [cnt_touch]
         description: "Physical contact (TRUE/FALSE)"
     foreign_keys:
       - column: part_id
@@ -284,7 +289,7 @@ files:
         type: id
         nullable: false
         unique: true
-        aliases: [household_id]
+        common_mistakes: [household_id]
         description: "Household identifier; primary key"
       - name: country
         type: string
@@ -457,6 +462,9 @@ decisions:
   - id: Q6
     topic: "Boolean coding (strict TRUE/FALSE) and missing tokens"
     where: "types.boolean.values; options.missing_token_aliases"
+  - id: Q41
+    topic: "Contact ID: cnt_id canonical, cont_id legacy alias (R40)"
+    where: "files.contact_common.columns[cnt_id].aliases; files.contact_common.key"
   - id: Q31
     topic: "Optional columns (age interval, cnt_age_multi, duration_exact)"
     where: "files.<id>.columns[].required"
@@ -498,7 +506,7 @@ rules:
   - id: R05
     class: A
     severity: error
-    severities: {order: error, extra: error}
+    severities: {order: error, extra: error, alias: note}
     title: "Common files hold the required columns (optional ones may be absent), no others"
     ref: "main.tex sec. 4"
   - id: R06
@@ -643,6 +651,11 @@ rules:
     planned: true
     title: "Silent-failure columns exist under exact names (currently covered by R05)"
     ref: "REVIEW P35, P37"
+  - id: R40
+    class: X
+    severity: error
+    title: "One spelling of the contact ID (cnt_id or legacy cont_id) per record"
+    ref: "REVIEW 6A.2a"
   - id: R38
     class: X
     severity: error

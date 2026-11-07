@@ -42,7 +42,7 @@ build_example_survey <- function(n_participants) {
   chosen <- sample(location, n, replace = TRUE)
   contact <- data.frame(
     part_id = contact_part,
-    cont_id = sprintf("C%05d", seq_len(n)),
+    cnt_id = sprintf("C%05d", seq_len(n)),
     cnt_gender = sample(c("F", "M", NA), n, replace = TRUE),
     cnt_age_exact = sample(c(0:85, NA), n, replace = TRUE),
     cnt_age_est_min = NA_integer_,
@@ -87,7 +87,7 @@ build_example_survey <- function(n_participants) {
     stringsAsFactors = FALSE
   )
   contact_extra <- data.frame(
-    cont_id = contact$cont_id,
+    cnt_id = contact$cnt_id,
     cnt_imputed = FALSE,
     stringsAsFactors = FALSE
   )

@@ -48,8 +48,8 @@ test_that("R16: keys are unique", {
   expect_equal(only_rule(report, "R16")$column[1], "part_id")
 
   cont <- tables
-  cont$contact$cont_id[5] <- cont$contact$cont_id[4]
-  expect_equal(only_rule(check_survey(cont), "R16")$column[1], "cont_id")
+  cont$contact$cnt_id[5] <- cont$contact$cnt_id[4]
+  expect_equal(only_rule(check_survey(cont), "R16")$column[1], "cnt_id")
 
   hh <- tables
   hh$hh$hh_id[2] <- hh$hh$hh_id[1]
@@ -60,7 +60,7 @@ test_that("R16: keys are unique", {
   expect_hit(check_survey(sday), "R16")
 
   extra <- tables
-  extra$contact_extra$cont_id[2] <- extra$contact_extra$cont_id[1]
+  extra$contact_extra$cnt_id[2] <- extra$contact_extra$cnt_id[1]
   expect_hit(check_survey(extra), "R16")
 
   # sday_id is a value, not a key: shared dates are fine

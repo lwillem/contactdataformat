@@ -1,7 +1,7 @@
 test_that("waive keeps findings in the report but they no longer fail it", {
   tables <- valid_survey()
   tables$sday$dayofweek[1] <- (tables$sday$dayofweek[1] + 1L) %% 7L
-  tables$contact$cont_id[2] <- tables$contact$cont_id[1]
+  tables$contact$cnt_id[2] <- tables$contact$cnt_id[1]
   report <- check_survey(tables)
   expect_equal(report$status, "FAIL")
 
@@ -29,7 +29,7 @@ test_that("waive validates its input", {
 
 test_that("rules and skip select which rules run", {
   tables <- valid_survey()
-  tables$contact$cont_id[2] <- tables$contact$cont_id[1]
+  tables$contact$cnt_id[2] <- tables$contact$cnt_id[1]
   tables$hh$country[1] <- "XX"
   only <- check_survey(tables, rules = "R16")
   expect_equal(hits(only, "error"), "R16")
@@ -48,7 +48,7 @@ test_that("a crashing rule becomes an error finding instead of aborting", {
 
 test_that("print, summary and as.data.frame work", {
   tables <- valid_survey()
-  tables$contact$cont_id[2] <- tables$contact$cont_id[1]
+  tables$contact$cnt_id[2] <- tables$contact$cnt_id[1]
   report <- check_survey(tables, waive = c(R06 = "reviewed"))
   out <- capture.output(print(report), type = "message")
   expect_match(paste(out, collapse = "\n"), "FAIL")
@@ -82,7 +82,7 @@ test_that("example rows are file line numbers", {
 
 test_that("report_write writes Markdown, CSV and JSON", {
   tables <- valid_survey()
-  tables$contact$cont_id[2] <- tables$contact$cont_id[1]
+  tables$contact$cnt_id[2] <- tables$contact$cnt_id[1]
   report <- check_survey(tables)
   dir <- withr::local_tempdir()
 

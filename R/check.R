@@ -117,7 +117,7 @@ check_tables <- function(participant,
     ),
     class = "socrates_data"
   )
-  run_checks(ctx, ...)
+  run_checks(apply_aliases(ctx), ...)
 }
 
 # Engine -------------------------------------------------------------------

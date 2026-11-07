@@ -45,7 +45,7 @@ test_that("an xlsx dictionary with one sheet per file is read", {
 
 test_that("check_contact_data can stop on errors", {
   tables <- valid_survey()
-  tables$contact$cont_id[2] <- tables$contact$cont_id[1]
+  tables$contact$cnt_id[2] <- tables$contact$cnt_id[1]
   dir <- survey_dir(tables)
   expect_error(check_contact_data(dir, quiet = TRUE, stop_on_error = TRUE),
                "error")
@@ -57,7 +57,7 @@ test_that("use_template writes a skeleton with the required headers", {
   files <- use_template(dir, "DOE_2012_BELGIUM")
   expect_true(all(file.exists(files)))
   header <- readLines(file.path(dir, "DOE_2012_BELGIUM_contact_common.csv"))
-  expect_match(header, "^\"part_id\",\"cont_id\"")
+  expect_match(header, "^\"part_id\",\"cnt_id\"")
   report <- check_contact_data(dir, quiet = TRUE)
   # an empty skeleton is not a valid dataset: no data rows
   expect_hit(report, "R04")

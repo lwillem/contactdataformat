@@ -9,3 +9,5 @@
 ^docs$
 ^\.claude$
 ^cran-comments\.md$
+^R/scratch\.R$
+^dev$

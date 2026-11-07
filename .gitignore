@@ -13,3 +13,6 @@ inst/doc
 *_geo_restricted*
 *_dictionary.xlsx
 .claude/
+# Local debugging scratch files (may contain paths to restricted data)
+R/scratch.R
+dev/

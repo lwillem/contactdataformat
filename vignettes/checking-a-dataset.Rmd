@@ -1,0 +1,133 @@
+---
+title: "Checking a social contact dataset"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Checking a social contact dataset}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+options(cli.num_colors = 1)
+```
+
+`contactdataformat` checks whether a social contact survey dataset follows the
+SOCRATES data-formatting guidelines, the layout that `socialmixr` and the
+SOCRATES tools read. It validates format and internal consistency, not
+scientific quality, and it never modifies the data.
+
+```{r setup}
+library(contactdataformat)
+```
+
+## A valid dataset
+
+`example_survey()` builds a small, fully synthetic dataset. `write_survey()`
+writes it in the guideline file layout.
+
+```{r valid}
+dir <- withr::local_tempdir()
+write_survey(example_survey(), dir, nametag = "DOE_2012_BELGIUM")
+list.files(dir)
+
+report <- check_contact_data(dir, quiet = TRUE)
+report
+```
+
+The status is `PASS`. The manual checklist lists items that software cannot
+judge (for example whether the NAMETAG is the right one); they never change the
+status.
+
+## A faulty dataset
+
+Here the contact ID is called `cnt_id` (the guideline draft used three
+different names), one contact has all locations `FALSE`, and a ZIP code ended
+up in the participant extra file.
+
+```{r faulty}
+tables <- example_survey()
+names(tables$contact)[names(tables$contact) == "cont_id"] <- "cnt_id"
+tables$contact[1, c("cnt_home", "cnt_work", "cnt_school", "cnt_transport",
+                    "cnt_leisure", "cnt_otherplace")] <- FALSE
+tables$participant_extra$zip_code <- "1000"
+
+bad <- withr::local_tempdir()
+write_survey(tables, bad, nametag = "DOE_2012_BELGIUM")
+check_contact_data(bad, quiet = TRUE)
+```
+
+Use `as.data.frame(report)` for the findings, `summary(report)` for counts, and
+`report_write()` to write Markdown, CSV or JSON, for example to attach to a
+Zenodo submission.
+
+```{r write}
+out <- report_write(check_contact_data(bad, quiet = TRUE),
+                    file.path(bad, "check.md"))
+head(readLines(out), 3)
+```
+
+## Rules, severities and waivers
+
+`list_rules()` is the rule catalogue. Classes: `A` automatic (schema driven),
+`X` cross-table, `H` heuristic (reported as warnings), `M` manual.
+
+```{r rules}
+head(list_rules(), 8)
+```
+
+A rule that does not apply to your survey can be waived, with a reason. The
+finding stays in the report as `waived`.
+
+```{r waive}
+check_contact_data(bad, quiet = TRUE,
+                   waive = c(R13 = "kindergarten-only contacts, see dictionary"))$counts
+```
+
+## The schema is the specification
+
+File names, columns, types, allowed values, keys, severities and thresholds
+live in a versioned YAML file bundled with the package
+(`inst/schema/socrates-guidelines-1.0.yaml`). Choices that are still open in
+the guideline are listed by `open_decisions()` together with the schema key
+that encodes the current choice. To try another choice, copy the file, edit it
+and pass the path:
+
+```{r decisions}
+open_decisions()
+```
+
+```{r custom, eval = FALSE}
+check_contact_data(dir, schema = "my-schema.yaml")
+```
+
+The package version follows the guideline version: `1.0.z` implements guideline
+`1.0`.
+
+## Keeping restricted geography out of the public record
+
+`socialmixr` merges every CSV in a dataset that shares a column name (for
+example `part_id`) with the participant or contact table. A restricted file
+with ZIP codes or coordinates in the same folder would therefore be loaded, and
+published, with the survey. Rule R27 flags geography column names (ZIP, address,
+coordinates), restricted-looking files and values that look like postal codes
+or coordinates. Finer geography belongs in a separate restricted file that is
+never part of the public folder.
+
+## Smoke test with socialmixr
+
+With `smoke_test = TRUE`, rule R22 loads the files with
+`socialmixr::load_survey()` and computes a small contact matrix.
+
+```{r smoke, eval = requireNamespace("socialmixr", quietly = TRUE)}
+check_contact_data(dir, smoke_test = TRUE, quiet = TRUE)$status
+```
+
+## Checking real data locally
+
+Real survey data are never part of this repository. To check a local export,
+point to the folder, for example through an environment variable:
+
+```{r flanders, eval = FALSE}
+check_contact_data(Sys.getenv("CONTACTDATAFORMAT_FLANDERS_DIR"))
+```

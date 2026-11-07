@@ -56,7 +56,9 @@ rule_r01 <- function(ctx) {
                                    ctx$all_files, ignore.case = TRUE)]
     hint <- if (length(similar) > 0) {
       paste0(" Found ", collapse_names(similar), ", which does not follow the ",
-             "naming or format (`.xlsx` or `.csv`) and is ignored.")
+             "naming (`NAMETAG_dictionary.<ext>`) or format (",
+             paste0("`.", unlist(schema$options$dictionary_extensions), "`",
+                    collapse = ", "), ") and is ignored.")
     } else {
       ""
     }

@@ -119,7 +119,7 @@ rule_r35 <- function(ctx) {
         "R35", variant = "dictionary_csv", file = dictionary,
         message = paste0(
           "socialmixr tries to merge the CSV dictionary and warns ",
-          "(harmless, but noisy). The guideline dictionary is `.xlsx`; ",
+          "(harmless, but noisy). The guideline dictionary is a spreadsheet (`.xlsx`/`.xls`); ",
           "prefer it in the public record."
         )
       )

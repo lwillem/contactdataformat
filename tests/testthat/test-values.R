@@ -287,3 +287,29 @@ test_that("holiday values in files: TRUE/FALSE pass on disk", {
   dir <- survey_dir(example_survey(with_holiday = TRUE))
   expect_clean(check_contact_data(dir, quiet = TRUE))
 })
+
+test_that("dictionary headers of the Zenodo template are understood", {
+  expect_equal(canonical_field(c("Data repository name", "Variable label",
+                                 "Variable Type", "Value labels")),
+               c("variable", "description", "type", "values"))
+  expect_equal(dictionary_type_class("String of 2 chars"), "string")
+  expect_equal(dictionary_type_class("string (including part_id)"), "string")
+  expect_equal(dictionary_type_class("Integer"), "integer")
+  expect_equal(dictionary_type_class("floating point"), "numeric")
+  # non-breaking space before the colon
+  expect_equal(parse_codes("1 : age<=12y\n2 : age>12y"), c("1", "2"))
+})
+
+test_that("value labels on continuation rows are folded into the variable", {
+  dict <- data.frame(
+    file = "contact_common",
+    variable = c("frequency_multi", NA, NA, "phys_contact"),
+    description = c("Frequency", NA, NA, "Physical"),
+    type = c("Integer", NA, NA, "Boolean"),
+    values = c("1: daily", "2: weekly", "3: monthly", NA),
+    stringsAsFactors = FALSE
+  )
+  norm <- normalise_dictionary(dict, NA_character_, read_schema())$data
+  expect_equal(norm$variable, c("frequency_multi", "phys_contact"))
+  expect_equal(parse_codes(norm$values[1]), c("1", "2", "3"))
+})

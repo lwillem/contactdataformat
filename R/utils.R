@@ -104,7 +104,7 @@ file_label <- function(ctx, id) {
 #' Strip a NAMETAG prefix and `.csv` from a file or sheet name.
 #' @noRd
 normalise_file_id <- function(x, nametag = NA_character_) {
-  x <- sub("\\.(csv|xlsx)$", "", trimws(x), ignore.case = TRUE)
+  x <- sub("\\.(csv|xlsx|xls)$", "", trimws(x), ignore.case = TRUE)
   if (!is.na(nametag)) {
     x <- sub(paste0("^", nametag, "_"), "", x)
   }

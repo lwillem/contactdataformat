@@ -262,8 +262,9 @@ as_text_table <- function(x) {
 dictionary_field_aliases <- list(
   file = c("file", "table", "sheet"),
   variable = c("variable", "name", "column", "var", "variable name",
-               "column name"),
-  description = c("description", "label", "definition", "short description"),
+               "column name", "data repository name"),
+  description = c("description", "label", "definition", "short description",
+                  "variable label"),
   type = c("type", "data type", "datatype", "variable type"),
   values = c("values", "allowed values", "allowed values and meaning",
              "coding", "codes", "categories", "allowed value", "value labels")
@@ -280,7 +281,7 @@ canonical_field <- function(header) {
 
 # Normalise a dictionary (data frame with a `file` column) to the standard
 # columns. Returns a list(data, missing_fields, note).
-normalise_dictionary <- function(x, nametag, schema, from_sheets = FALSE) {
+normalise_dictionary <- function(x, nametag, schema) {
   fields <- schema$dictionary$fields
   x <- as.data.frame(x, stringsAsFactors = FALSE)
   canon <- canonical_field(names(x))
@@ -290,10 +291,30 @@ normalise_dictionary <- function(x, nametag, schema, from_sheets = FALSE) {
   for (field in c("file", fields)) {
     if (!field %in% names(x)) x[[field]] <- NA_character_
   }
+  x <- fold_continuation_rows(x)
   x$file <- normalise_file_id(x$file, nametag)
   x <- x[!is.na(x$variable), c("file", fields), drop = FALSE]
   x$variable <- trimws(x$variable)
   list(data = x, found_fields = intersect(unique(canon), fields))
+}
+
+# Spreadsheet dictionaries often list one value label per row, leaving the
+# variable name empty on the continuation rows. Fold those into the `values`
+# of the variable above (same file/sheet only).
+fold_continuation_rows <- function(x) {
+  keep <- rep(TRUE, nrow(x))
+  last <- NA_integer_
+  for (i in seq_len(nrow(x))) {
+    if (!is.na(x$variable[i])) {
+      last <- i
+    } else if (!is.na(last) && !is.na(x$values[i]) &&
+                 identical(x$file[i], x$file[last])) {
+      x$values[last] <- paste(c(x$values[last], x$values[i])[
+        !is.na(c(x$values[last], x$values[i]))], collapse = "\n")
+      keep[i] <- FALSE
+    }
+  }
+  x[keep, , drop = FALSE]
 }
 
 read_dictionary <- function(file, nametag, schema) {
@@ -321,25 +342,36 @@ read_dictionary <- function(file, nametag, schema) {
       out$note <- "Package {.pkg readxl} is not installed; dictionary skipped."
       return(out)
     }
-    sheets <- readxl::excel_sheets(file)
-    pieces <- lapply(sheets, function(sheet) {
-      d <- as.data.frame(
-        readxl::read_excel(file, sheet = sheet, col_types = "text"),
-        stringsAsFactors = FALSE
-      )
-      d$file <- sheet
-      d
-    })
-    # keep canonical field detection per sheet, then bind
-    normed <- lapply(pieces, normalise_dictionary, nametag = nametag,
-                     schema = schema, from_sheets = TRUE)
-    found <- unique(unlist(lapply(normed, `[[`, "found_fields")))
-    data <- do.call(rbind, lapply(normed, `[[`, "data"))
-    norm <- list(data = data, found_fields = found)
+    norm <- tryCatch(read_excel_dictionary(file, nametag, schema),
+                     error = function(e) {
+                       out$note <<- paste0("The dictionary could not be read: ",
+                                           conditionMessage(e))
+                       NULL
+                     })
+    if (is.null(norm)) {
+      return(out)
+    }
   }
   out$data <- norm$data
   out$missing_fields <- setdiff(schema$dictionary$fields, norm$found_fields)
   out
+}
+
+read_excel_dictionary <- function(file, nametag, schema) {
+  sheets <- readxl::excel_sheets(file)
+  pieces <- lapply(sheets, function(sheet) {
+    d <- as.data.frame(
+      readxl::read_excel(file, sheet = sheet, col_types = "text"),
+      stringsAsFactors = FALSE
+    )
+    d$file <- sheet
+    d
+  })
+  normed <- lapply(pieces, normalise_dictionary, nametag = nametag,
+                   schema = schema)
+  found <- unique(unlist(lapply(normed, `[[`, "found_fields")))
+  list(data = do.call(rbind, lapply(normed, `[[`, "data")),
+       found_fields = found)
 }
 
 read_metadata <- function(file) {

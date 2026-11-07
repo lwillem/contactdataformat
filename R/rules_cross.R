@@ -1,9 +1,10 @@
 # Cross-table rules: R15-R20 ----------------------------------------------------
 
 dictionary_type_class <- function(x) {
-  x <- tolower(trimws(sub("[^A-Za-z ].*$", "", x)))
-  if (x %in% c("integer", "int", "whole number")) return("integer")
-  if (x %in% c("numeric", "float", "floating point", "double", "decimal",
+  # first word only: "Integer (years)", "String of 2 chars", "floating point"
+  x <- tolower(sub("^([A-Za-z]+).*$", "\\1", trimws(x)))
+  if (x %in% c("integer", "int", "whole")) return("integer")
+  if (x %in% c("numeric", "float", "floating", "double", "decimal",
                "number")) {
     return("numeric")
   }
@@ -22,7 +23,7 @@ compatible_types <- function(schema_type) {
     integer = c("integer"),
     numeric = c("numeric", "integer"),
     string = c("string", "code"),
-    boolean = c("boolean"),
+    boolean = c("boolean", "integer"),  # integer: legacy 0/1 coding (R08 warns)
     id = c("id", "string", "integer", "code"),
     code = c("code", "string", "integer", "id"),
     date_yyyymmdd = c("string", "date", "integer", "code"),

@@ -39,6 +39,11 @@
   warning described below. When the column is present, a manual checklist item
   (R25) asks that its definition is documented in the dictionary.
   `example_survey(with_holiday = TRUE)` adds it to the synthetic example.
+* Dictionary: `.xls` is accepted like `.xlsx` (and `.csv`); the reader also
+  understands the header names of the Zenodo dictionary template ("Data
+  repository name", "Variable label", "Variable Type", "Value labels"),
+  folds value labels spread over several rows into the variable above, and
+  reports an unreadable spreadsheet as a note instead of failing.
 * Catalogued but not yet implemented: R28-R33 (content of a restricted
   geography file), R36 (Zenodo record metadata, needs network) and R37
   (silent-failure columns, currently covered by R05).

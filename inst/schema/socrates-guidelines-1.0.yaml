@@ -47,7 +47,7 @@ options:
   # Index-like first column names that indicate exported row names.
   rowname_column_names: ["", "X", "V1", "...1", "Unnamed: 0", "row.names",
                          "rownames", "row_names"]
-  dictionary_extensions: ["xlsx", "csv"]
+  dictionary_extensions: ["xlsx", "xls", "csv"]
 
 types:
   boolean:

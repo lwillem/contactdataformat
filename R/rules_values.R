@@ -371,7 +371,11 @@ rule_r13 <- function(ctx) {
 
 # Codes documented in a free-text `values` cell ("1 = daily; 2 = weekly")
 parse_codes <- function(values) {
-  if (is.na(values) || trimws(values) == "") {
+  if (is.na(values)) {
+    return(character())
+  }
+  values <- gsub("\u00a0", " ", values, fixed = TRUE)
+  if (trimws(values) == "") {
     return(character())
   }
   pieces <- trimws(strsplit(values, "[;|\n]+")[[1]])

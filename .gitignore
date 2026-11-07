@@ -16,3 +16,4 @@ inst/doc
 # Local debugging scratch files (may contain paths to restricted data)
 R/scratch.R
 dev/
+*.Rproj

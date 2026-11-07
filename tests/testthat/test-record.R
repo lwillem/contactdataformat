@@ -206,3 +206,15 @@ test_that("cnt_otherplace stays the canonical name, cnt_others is an error", {
   expect_hit(report, "R05")
   expect_msg(report, "R05", "cnt_others")
 })
+
+test_that("R40 works when only one of the files uses the legacy spelling", {
+  # common uses the legacy cont_id, extra has no renamed column at all
+  tables <- rename_contact_key(valid_survey(), "cnt_id", "cont_id", "contact")
+  report <- check_survey(tables)
+  expect_false(any(grepl("could not be evaluated", report$findings$message)))
+  expect_hit(report, "R40")
+  # no extra file at all
+  tables$contact_extra <- NULL
+  expect_false(any(grepl("could not be evaluated",
+                         check_survey(tables)$findings$message)))
+})

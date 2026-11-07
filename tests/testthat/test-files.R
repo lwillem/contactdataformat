@@ -177,3 +177,21 @@ test_that("a folder without recognisable file names gives one clear finding", {
   named <- check_contact_data(dir, nametag = "DOE_2012_BELGIUM", quiet = TRUE)
   expect_msg(named, "R01", "DOE_2012_BELGIUM_hh_common.csv")
 })
+
+test_that("R01 mentions a dictionary file in an unsupported format", {
+  dir <- survey_dir()
+  file.remove(file.path(dir, "DOE_2012_BELGIUM_dictionary.csv"))
+  writeLines("x", file.path(dir, "DOE_2012_BELGIUM_dictionary (1).xls"))
+  expect_msg(check_contact_data(dir, quiet = TRUE), "R01", "ignored")
+})
+
+test_that("R06 reports shared columns of an extra file once", {
+  tables <- valid_survey()
+  tables$contact_extra$part_id <- tables$contact$part_id
+  report <- check_survey(tables)
+  shared <- only_rule(report, "R06")
+  shared <- shared[shared$severity == "warning", ]
+  expect_equal(nrow(shared), 1)
+  expect_match(shared$message, "participant_common")
+  expect_match(shared$message, "sday")
+})

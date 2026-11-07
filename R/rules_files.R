@@ -52,9 +52,18 @@ rule_r01 <- function(ctx) {
   if (isTRUE(schema$dictionary$required) && is.null(ctx$dictionary_file)) {
     wanted <- paste0(tag, "_", schema$dictionary$basename, ".",
                      schema$options$dictionary_extensions, collapse = " or ")
+    similar <- ctx$all_files[grepl(schema$dictionary$basename,
+                                   ctx$all_files, ignore.case = TRUE)]
+    hint <- if (length(similar) > 0) {
+      paste0(" Found ", collapse_names(similar), ", which does not follow the ",
+             "naming or format (`.xlsx` or `.csv`) and is ignored.")
+    } else {
+      ""
+    }
     out[[length(out) + 1]] <- finding(
       "R01", file = wanted,
-      message = paste0("Required dictionary file is missing (", wanted, ").")
+      message = paste0("Required dictionary file is missing (", wanted, ").",
+                       hint)
     )
   }
   for (file in ctx$misnamed) {
@@ -315,19 +324,26 @@ rule_r06 <- function(ctx) {
       }
     }
     others <- setdiff(names(ctx$tables), c(id, common_id))
+    shared_with <- list()
     for (other in others) {
       shared <- setdiff(intersect(names(extra), names(ctx$tables[[other]])),
                         key)
       if (length(shared) > 0) {
-        out[[length(out) + 1]] <- finding(
-          "R06", variant = "shared", file = file, n_fail = length(shared),
-          message = paste0(
-            "Column(s) ", collapse_names(shared), " also occur in ",
-            file_label(ctx, other), "; socialmixr merges files on every ",
-            "shared column name."
-          )
-        )
+        shared_with[[other]] <- shared
       }
+    }
+    if (length(shared_with) > 0) {
+      columns <- unique(unlist(shared_with))
+      labels <- vapply(names(shared_with), function(o) file_label(ctx, o),
+                       character(1))
+      tables <- paste(labels, collapse = ", ")
+      out[[length(out) + 1]] <- finding(
+        "R06", variant = "shared", file = file, n_fail = length(columns),
+        message = paste0(
+          "Column(s) ", collapse_names(columns), " also occur in ", tables,
+          "; socialmixr merges files on every shared column name."
+        )
+      )
     }
   }
   bind_findings(out)

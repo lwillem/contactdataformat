@@ -115,7 +115,7 @@ print.socrates_report <- function(x, ...) {
       where <- location_label(rows[i, ])
       cli::cli_bullets(stats::setNames(
         paste0("{.strong ", rows$rule_id[i], "} ", where,
-               cli::format_inline("{rows$message[i]}")),
+               cli_escape(rows$message[i])),
         marker
       ))
     }
@@ -129,7 +129,7 @@ print.socrates_report <- function(x, ...) {
     for (i in seq_len(nrow(waived))) {
       cli::cli_bullets(c(
         "*" = paste0(waived$rule_id[i], ": ",
-                     cli::format_inline("{waived$waiver_reason[i]}"))
+                     cli_escape(waived$waiver_reason[i]))
       ))
     }
   }
@@ -155,7 +155,12 @@ location_label <- function(row) {
   } else if (!is.na(row$n_fail)) {
     label <- paste0(label, "(", row$n_fail, ") ")
   }
-  gsub("\\{", "{{", gsub("\\}", "}}", label))
+  cli_escape(label)
+}
+
+# Braces in messages (e.g. the regex `[0-9]{4}`) must not be read as cli glue
+cli_escape <- function(x) {
+  gsub("}", "}}", gsub("{", "{{", x, fixed = TRUE), fixed = TRUE)
 }
 
 #' @rdname socrates_report

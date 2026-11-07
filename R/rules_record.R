@@ -152,7 +152,8 @@ rule_r40 <- function(ctx) {
   schema <- ctx$schema
   out <- list()
   spelling <- function(id, key) {
-    ctx$renamed[[id]][[key]] %||% key
+    used <- ctx$renamed[[id]]
+    if (key %in% names(used)) used[[key]] else key
   }
   for (id in schema_ids(schema, "extra")) {
     common <- schema$files[[id]]$common

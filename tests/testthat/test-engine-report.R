@@ -116,3 +116,9 @@ test_that("read_socrates exposes the data as the checker sees them", {
   expect_equal(x$nametag, "DOE_2012_BELGIUM")
   expect_error(read_socrates(file.path(dir, "nope")), "existing folder")
 })
+
+test_that("braces in messages are printed literally", {
+  tables <- valid_survey()
+  report <- check_survey(tables, nametag = "bad_name")
+  expect_match(printed(report), "[0-9]{4}", fixed = TRUE)
+})

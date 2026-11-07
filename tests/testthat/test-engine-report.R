@@ -50,11 +50,11 @@ test_that("print, summary and as.data.frame work", {
   tables <- valid_survey()
   tables$contact$cnt_id[2] <- tables$contact$cnt_id[1]
   report <- check_survey(tables, waive = c(R06 = "reviewed"))
-  out <- capture.output(print(report), type = "message")
-  expect_match(paste(out, collapse = "\n"), "FAIL")
-  expect_match(paste(out, collapse = "\n"), "R16")
-  expect_match(paste(out, collapse = "\n"), "Manual checklist")
-  expect_match(paste(out, collapse = "\n"), "Waived")
+  out <- printed(report)
+  expect_match(out, "FAIL")
+  expect_match(out, "R16")
+  expect_match(out, "Manual checklist")
+  expect_match(out, "Waived")
 
   s <- summary(report)
   expect_s3_class(s, "summary.socrates_report")
@@ -68,7 +68,8 @@ test_that("print, summary and as.data.frame work", {
                     names(df)))
 
   clean <- check_survey(valid_survey())
-  expect_no_error(capture.output(print(clean), type = "message"))
+  expect_no_error(printed(clean))
+  expect_match(printed(clean), "PASS")
   expect_no_error(capture.output(print(summary(clean))))
 })
 

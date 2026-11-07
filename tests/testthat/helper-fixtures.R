@@ -81,3 +81,10 @@ redocument <- function(tables) {
   tables$dictionary <- contactdataformat:::example_dictionary(docs)
   tables
 }
+
+# Text printed by print.socrates_report. cli_fmt() collects the cli output
+# explicitly, so the result does not depend on the testthat reporter (which
+# writes its own progress to stdout/stderr) or on the terminal.
+printed <- function(x) {
+  paste(cli::cli_fmt(print(x)), collapse = "\n")
+}

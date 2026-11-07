@@ -172,8 +172,7 @@ test_that("a folder without recognisable file names gives one clear finding", {
   expect_match(r01$message, "not `.csv`")
   expect_false(any(grepl("NA_", report$findings$message)))
   expect_false("R24" %in% hits(report))
-  out <- capture.output(print(report), type = "message")
-  expect_match(paste(out, collapse = " "), "could not be determined")
+  expect_match(printed(report), "could not be determined")
   # with a NAMETAG the missing files are named
   named <- check_contact_data(dir, nametag = "DOE_2012_BELGIUM", quiet = TRUE)
   expect_msg(named, "R01", "DOE_2012_BELGIUM_hh_common.csv")

@@ -75,12 +75,19 @@ rule_r07 <- function(ctx) {
   bind_findings(out)
 }
 
+# Legacy codes accepted (with a warning) for a boolean column
+boolean_legacy_values <- function(schema, spec) {
+  unique(c(unlist(schema$types$boolean$legacy_values),
+           unlist(spec$legacy_values)))
+}
+
 type_problem <- function(schema, spec, x) {
   type <- spec$type
   def <- schema$types[[type]]
   non_missing <- !is.na(x)
   if (identical(type, "boolean")) {
-    return(non_missing & !x %in% unlist(def$values))
+    accepted <- c(unlist(def$values), boolean_legacy_values(schema, spec))
+    return(non_missing & !x %in% accepted)
   }
   if (is.null(def$pattern)) {
     return(rep(FALSE, length(x)))
@@ -98,7 +105,7 @@ rule_r08 <- function(ctx) {
       hint <- if (identical(spec$type, "boolean")) {
         paste0(" Use ", paste(unlist(schema$types$boolean$values),
                               collapse = " or "),
-               " (not 0/1, Y/N, yes/no).")
+               " (not Y/N, T/F or yes/no).")
       } else {
         ""
       }
@@ -109,16 +116,20 @@ rule_r08 <- function(ctx) {
                          "), found ", show_values(x[bad]), ".", hint)
       )
     }
-    quoted <- ctx$file_info[[id]]$quoted[[spec$name]]
-    if (length(quoted) > 0 && !is.null(spec$legacy_quoted_digits)) {
-      out[[length(out) + 1]] <- finding(
-        "R08", variant = "legacy_quoted", file = file, column = spec$name,
-        n_fail = length(quoted), n_total = length(x), rows = quoted,
-        message = paste0(
-          "Quoted digits (\"0\"/\"1\") are a legacy form (e.g. Zenodo v1.2) ",
-          "and accepted for now; write unquoted TRUE/FALSE (or 0/1)."
+    if (identical(spec$type, "boolean")) {
+      legacy <- which(x %in% boolean_legacy_values(schema, spec) &
+                        !x %in% unlist(schema$types$boolean$values))
+      if (length(legacy) > 0) {
+        out[[length(out) + 1]] <- finding(
+          "R08", variant = "legacy_boolean", file = file, column = spec$name,
+          n_fail = length(legacy), n_total = length(x), rows = legacy,
+          message = paste0(
+            "Legacy boolean coding ", show_values(x[legacy]), " (as in ",
+            "POLYMOD, CoMix and Zenodo v1.2): socialmixr still reads it, ",
+            "but TRUE/FALSE is required for new datasets."
+          )
         )
-      )
+      }
     }
     if (isFALSE(spec$nullable)) {
       missing <- which(is.na(x))

@@ -29,12 +29,16 @@ test_that("R08: column types and mandatory values", {
   boolean <- tables
   boolean$contact$phys_contact <- ifelse(boolean$contact$phys_contact, "Y", "N")
   boolean$contact$cnt_home <- ifelse(boolean$contact$cnt_home, "yes", "no")
-  # integer 0/1 is accepted
+  # integer 0/1 is a legacy form: warning
   boolean$contact$cnt_work <- ifelse(boolean$contact$cnt_work, 1L, 0L)
   report <- check_survey(boolean)
   expect_hit(report, "R08")
   expect_msg(report, "R08", "TRUE or FALSE")
-  expect_setequal(only_rule(report, "R08")$column, c("phys_contact", "cnt_home"))
+  # text codes are errors; the legacy integer 0/1 is only a warning
+  errors <- only_rule(report, "R08")
+  expect_setequal(errors$column[errors$severity == "error"],
+                  c("phys_contact", "cnt_home"))
+  expect_equal(errors$column[errors$severity == "warning"], "cnt_work")
 
   integer <- tables
   integer$participant$part_age_exact[1] <- 3.5
@@ -233,12 +237,15 @@ test_that("holiday is optional in the survey-day file", {
   expect_false(any(grepl("holiday", only_rule(check_survey(without), "R25")$message)))
 })
 
-test_that("holiday accepts TRUE/FALSE, 0/1 and NA", {
+test_that("holiday accepts TRUE/FALSE and NA; 0/1 is a legacy warning", {
   tables <- example_survey(with_holiday = TRUE)
   tables$sday$holiday[1:3] <- NA
   expect_clean(check_survey(tables))
   tables$sday$holiday <- as.integer(tables$sday$holiday)
-  expect_clean(check_survey(tables))
+  report <- check_survey(tables)
+  expect_hit(report, "R08", "warning")
+  expect_false("R08" %in% hits(report, "error"))
+  expect_equal(report$status, "PASS WITH WARNINGS")
 })
 
 test_that("holiday with text codes is an error", {
@@ -267,11 +274,13 @@ test_that("holiday as quoted digits is a warning, not an error (legacy form)", {
   expect_hit(report, "R08", "warning")
   expect_false("R08" %in% hits(report, "error"))
   expect_equal(report$status, "PASS WITH WARNINGS")
-  expect_msg(report, "R08", "legacy")
+  expect_msg(report, "R08", "Legacy boolean")
 
-  # unquoted digits in the same column are fine
-  clean <- survey_dir(tables)
-  expect_clean(check_contact_data(clean, quiet = TRUE))
+  # unquoted digits are the same legacy form; TRUE/FALSE is clean
+  unquoted <- survey_dir(tables)
+  expect_hit(check_contact_data(unquoted, quiet = TRUE), "R08", "warning")
+  tables$sday$holiday <- as.logical(tables$sday$holiday)
+  expect_clean(check_contact_data(survey_dir(tables), quiet = TRUE))
 })
 
 test_that("holiday values in files: TRUE/FALSE pass on disk", {

@@ -14,9 +14,10 @@
   rules, a manual checklist (class M), `waive` with reasons, and a privacy rule
   (R27) that keeps restricted geography out of the public record.
 * Aligned with sections 6A.7/6A.8 of the guideline review: optional columns
-  may be absent, column order is not enforced by default, `0/1` booleans are
-  accepted, study metadata is a YAML file (socialmixr reads the first `.json`
-  of a record as its citation), and record-hygiene rules R34 (CSV files that
+  may be absent, column order is not enforced by default, booleans are
+  `TRUE`/`FALSE` (legacy `0/1` gives a warning, see below), study metadata is
+  a YAML file (socialmixr reads the first `.json` of a record as its
+  citation), and record-hygiene rules R34 (CSV files that
   socialmixr would merge), R35 (merge simulation, with `smoke_test = TRUE`),
   R38 (identifier types) and R39 (`diary_weight`) are implemented.
 * Contact ID: `cnt_id` is canonical and `cont_id` is an accepted legacy alias
@@ -24,12 +25,18 @@
   accepted spellings, `common_mistakes` only gives hints. New rule R40: a
   record must use one spelling of the contact ID in `contact_common` and
   `contact_extra`.
+* Booleans: `TRUE`/`FALSE` is the only canonical form for new datasets.
+  Integer or quoted `0`/`1` (legacy: POLYMOD, CoMix, Zenodo v1.2; also `1`/`2`
+  for `phys_contact`) is reported as a warning by R08 (variant
+  `legacy_boolean`): socialmixr still reads it, so published records stay
+  checkable. Text codes (`Y`/`N`, `T`/`F`, `yes`/`no`) remain errors. The
+  severity is a schema setting.
 * Optional `holiday` column in the survey-day file (`sday`): TRUE if the diary
   day falls in a school holiday that applies to the participant (regional,
   not a public-holiday flag), FALSE otherwise, `NA` if the date is unknown.
   It follows the boolean rule (R08: `TRUE`/`FALSE`, `0`/`1` accepted, `Y`/`N`
-  is an error); quoted `"0"`/`"1"` strings as in Zenodo v1.2 give a warning
-  (R08, legacy form). When the column is present, a manual checklist item
+  is an error); quoted `"0"`/`"1"` strings as in Zenodo v1.2 give the legacy
+  warning described below. When the column is present, a manual checklist item
   (R25) asks that its definition is documented in the dictionary.
   `example_survey(with_holiday = TRUE)` adds it to the synthetic example.
 * Catalogued but not yet implemented: R28-R33 (content of a restricted

@@ -10,7 +10,7 @@
 # REVIEW_guidelines_vs_flanders2010.md (P1-P11, section 6A.2a/6A.7/6A.8):
 # `cnt_id` (legacy alias `cont_id`), `cnt_otherplace`, `part_age_exact`
 # (alias `part_age`), survey-day file keyed by `part_id`, no
-# `sday_id` in the contact file, TRUE/FALSE booleans (0/1 accepted), UTF-8,
+# `sday_id` in the contact file, TRUE/FALSE booleans (0/1 is a legacy form, warning), UTF-8,
 # optional columns may be absent, column order not enforced, metadata as YAML
 # (socialmixr reads the first .json file of a record as its citation).
 
@@ -51,12 +51,19 @@ options:
 
 types:
   boolean:
-    # TRUE/FALSE is canonical; 0/1 is accepted (POLYMOD, CoMix). Text codes
-    # such as Y/N or yes/no are errors because filters would silently match
-    # nothing. (Q6: edit `values`/`true_values` to change)
-    values: ["TRUE", "FALSE", "0", "1"]
+    # TRUE/FALSE is the only canonical form and required for new datasets.
+    # `legacy_values` (integer or quoted 0/1, as in POLYMOD, CoMix and Zenodo
+    # v1.2) are still read by socialmixr and reported as a warning (R08,
+    # variant legacy_boolean), so published records stay checkable. Text codes
+    # such as Y/N, T/F or yes/no are errors because filters would silently
+    # match nothing. A column can add to `legacy_values` (see phys_contact).
+    # (Q32: move `legacy_values` to `values` to accept them silently, or set
+    # the R08 `legacy_boolean` severity to error for new submissions.)
+    values: ["TRUE", "FALSE"]
+    legacy_values: ["0", "1"]
+    # values that count as TRUE when checking location logic (R13)
     true_values: ["TRUE", "1"]
-    description: "TRUE or FALSE (0/1 accepted)"
+    description: "TRUE or FALSE (0/1 is a legacy form)"
   integer:
     pattern: '^-?[0-9]+$'
     description: "Whole number"
@@ -263,6 +270,8 @@ files:
         type: boolean
         nullable: true
         common_mistakes: [cnt_touch]
+        # legacy POLYMOD coding 1 = physical, 2 = not physical
+        legacy_values: ["0", "1", "2"]
         description: "Physical contact (TRUE/FALSE)"
     foreign_keys:
       - column: part_id
@@ -352,9 +361,6 @@ files:
         type: boolean
         nullable: true
         required: false
-        # Zenodo v1.2 (Flanders) stores quoted "0"/"1" strings; accepted with a
-        # warning (R08, variant legacy_quoted). Remove to treat them like 0/1.
-        legacy_quoted_digits: warn
         description: "TRUE if the survey day falls in a school holiday that applies to the participant (regional, not a public-holiday flag), FALSE otherwise; NA if the date is unknown"
     foreign_keys:
       - column: part_id
@@ -481,8 +487,8 @@ decisions:
     topic: "Optional columns (age interval, cnt_age_multi, duration_exact)"
     where: "files.<id>.columns[].required"
   - id: Q32
-    topic: "Boolean coding: TRUE/FALSE with 0/1 accepted"
-    where: "types.boolean.values; types.boolean.true_values"
+    topic: "Boolean coding: TRUE/FALSE required, 0/1 legacy warning (Q32)"
+    where: "types.boolean.values; types.boolean.legacy_values; rules.R08.severities.legacy_boolean"
   - id: Q34
     topic: "Open age bands need an explicit upper bound"
     where: "options.allow_open_age_interval"
@@ -536,7 +542,7 @@ rules:
   - id: R08
     class: A
     severity: error
-    severities: {legacy_quoted: warning}
+    severities: {legacy_boolean: warning}
     title: "Column types (integer, numeric, string, boolean TRUE/FALSE)"
     ref: "main.tex sec. 4"
   - id: R09

@@ -68,6 +68,22 @@ out <- report_write(check_contact_data(bad, quiet = TRUE),
 head(readLines(out), 3)
 ```
 
+## Booleans: TRUE/FALSE, legacy 0/1 is a warning
+
+Yes/no variables (locations, `phys_contact`, `holiday`, ...) are written as
+`TRUE` or `FALSE`. The legacy `0`/`1` coding of older records (POLYMOD, CoMix,
+Zenodo v1.2) is still read by `socialmixr`, so it is reported as a warning, not
+an error. Text codes such as `Y`/`N` or `yes`/`no` are errors, because filters
+would silently match nothing.
+
+```{r boolean}
+legacy <- example_survey()
+legacy$contact$phys_contact <- as.integer(legacy$contact$phys_contact)
+legacy$contact$cnt_home <- ifelse(legacy$contact$cnt_home, "yes", "no")
+as.data.frame(check_tables(legacy$participant, legacy$contact, legacy$hh,
+                           legacy$sday, quiet = TRUE))[, c("rule_id", "severity", "column")]
+```
+
 ## Rules, severities and waivers
 
 `list_rules()` is the rule catalogue. Classes: `A` automatic (schema driven),

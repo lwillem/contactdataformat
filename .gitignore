@@ -1,0 +1,15 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+.DS_Store
+*.Rcheck/
+*.tar.gz
+docs/
+inst/doc
+# Never commit real survey data or restricted geography files
+*.csv
+!tests/testthat/fixtures/*.csv
+*_geo_restricted*
+*_dictionary.xlsx
+.claude/

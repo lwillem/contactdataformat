@@ -1,0 +1,77 @@
+# contactdataformat
+
+Check whether a social contact survey dataset follows the
+[SOCRATES data-formatting guidelines](https://socialcontactdata.org), the file
+layout read by the [socialmixr](https://github.com/epiforecasts/socialmixr)
+package and the SOCRATES tools.
+
+> **Status: first working version for guideline 1.0 (draft).** The schema
+> follows the recommended choices of the guideline review (e.g. `cont_id`,
+> `cnt_otherplace`, `part_age_exact`); open choices are listed by
+> `open_decisions()` and can be changed in the schema. The package is
+> developed standalone and may later move into `contactsurveys` or `socialmixr`.
+
+## Installation
+
+```r
+# install.packages("pak")
+pak::pak("lwillem/contactdataformat")
+```
+
+## Usage
+
+```r
+library(contactdataformat)
+
+report <- check_contact_data("path/to/NAMETAG_dataset_folder")
+report                       # status PASS / PASS WITH WARNINGS / FAIL
+summary(report)
+as.data.frame(report)        # findings: rule_id, severity, file, column, ...
+report_write(report, "report.md")   # or .csv / .json
+
+list_rules()                 # rule catalogue (classes A, X, H, M)
+check_contact_data(path, waive = c(R12 = "diary day is the assigned day"))
+check_contact_data(path, smoke_test = TRUE)   # also load with socialmixr
+```
+
+`check_tables()` runs the same rules on data frames in memory;
+`use_template()` writes an empty submission skeleton; study metadata is a
+YAML file (`NAMETAG_metadata.yaml`), never JSON, because socialmixr reads the
+first `.json` file of a record as its citation; `example_survey()` and
+`write_survey()` create a synthetic valid dataset.
+
+## What is checked
+
+| Class | Meaning | Examples |
+|---|---|---|
+| A | automatic, schema driven | file names, columns, types, allowed values, age encoding, location logic, survey-day dates, key uniqueness, privacy scan, socialmixr smoke test and merge simulation |
+| X | automatic, cross-table | extra files vs common files, foreign keys, dictionary coverage, household size, record hygiene (no CSV that socialmixr would merge), identifier types |
+| H | heuristic, reported as warnings | contact counts, share of missing ages, identifier-like column names |
+| M | manual checklist | NAMETAG content, documented conventions, metadata content |
+
+Rules R28-R33 (content of a restricted geography file), R36 (Zenodo record
+metadata) and R37 (covered by R05) are in the catalogue but not yet implemented. **Rule R27 flags ZIP codes, addresses and coordinates in a
+public record**, including a restricted geography file placed in the same
+folder, because `socialmixr` merges every CSV that shares a column name with the
+main tables.
+
+## Privacy
+
+The package ships no real survey data. Tests use synthetic fixtures. To check a
+local export of real data, point to it with an environment variable (the
+relevant tests are skipped when it is unset):
+
+```sh
+CONTACTDATAFORMAT_FLANDERS_DIR=/path/to/export Rscript -e 'devtools::test()'
+```
+
+## Versioning
+
+The package `MAJOR.MINOR` equals the guideline version it implements
+(`1.0.z` implements guideline `1.0`); the third number counts checker fixes.
+Older schemas stay bundled (`guideline_versions()`), and every report records
+the package version, guideline version and schema hash.
+
+## Licence and contributing
+
+MIT. See [CONTRIBUTING.md](CONTRIBUTING.md).

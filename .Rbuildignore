@@ -1,0 +1,11 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^LICENSE\.md$
+^\.github$
+^CONTRIBUTING\.md$
+^README\.Rmd$
+^\.lintr$
+^data-raw$
+^docs$
+^\.claude$
+^cran-comments\.md$

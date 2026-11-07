@@ -176,5 +176,5 @@ test_that("a folder without recognisable file names gives one clear finding", {
   expect_match(paste(out, collapse = " "), "could not be determined")
   # with a NAMETAG the missing files are named
   named <- check_contact_data(dir, nametag = "DOE_2012_BELGIUM", quiet = TRUE)
-  expect_match(paste(only_rule(named, "R01")$message), "DOE_2012_BELGIUM_hh_common.csv")
+  expect_msg(named, "R01", "DOE_2012_BELGIUM_hh_common.csv")
 })

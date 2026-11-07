@@ -348,6 +348,14 @@ files:
         nullable: true
         range: [0, 6]
         description: "Day of week, 0 = Sunday ... 6 = Saturday"
+      - name: holiday
+        type: boolean
+        nullable: true
+        required: false
+        # Zenodo v1.2 (Flanders) stores quoted "0"/"1" strings; accepted with a
+        # warning (R08, variant legacy_quoted). Remove to treat them like 0/1.
+        legacy_quoted_digits: warn
+        description: "TRUE if the survey day falls in a school holiday that applies to the participant (regional, not a public-holiday flag), FALSE otherwise; NA if the date is unknown"
     foreign_keys:
       - column: part_id
         references: participant_common.part_id
@@ -441,6 +449,10 @@ manual_items:
   - id: R25d
     title: "Proxy respondents"
     prompt: "How proxy-reported participants and imputed contacts are coded is documented (Q5, P12)."
+  - id: R25e
+    title: "Holiday definition"
+    when_column: sday.holiday
+    prompt: "The definition of `holiday` (school holiday, region or community, calendar source) is documented in the dictionary."
   - id: R24m
     title: "Metadata content"
     prompt: "Zenodo title, description, dates and geographic scope are consistent with the data files."
@@ -524,6 +536,7 @@ rules:
   - id: R08
     class: A
     severity: error
+    severities: {legacy_quoted: warning}
     title: "Column types (integer, numeric, string, boolean TRUE/FALSE)"
     ref: "main.tex sec. 4"
   - id: R09

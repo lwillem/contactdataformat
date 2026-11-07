@@ -126,6 +126,16 @@ rule_r24 <- function(ctx) {
 rule_r25 <- function(ctx) {
   items <- Filter(function(i) startsWith(i$id, "R25") || startsWith(i$id, "R24"),
                   ctx$schema$manual_items)
+  # items with `when_column: <file id>.<column>` apply only when that column
+  # is present
+  applies <- function(item) {
+    if (is.null(item$when_column)) {
+      return(TRUE)
+    }
+    target <- strsplit(item$when_column, ".", fixed = TRUE)[[1]]
+    has_column(ctx, target[1], target[2])
+  }
+  items <- Filter(applies, items)
   purrr::map(items, function(item) {
     finding("R25", message = paste0(item$title, ": ", item$prompt))
   }) |>

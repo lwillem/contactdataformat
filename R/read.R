@@ -40,6 +40,11 @@ read_socrates <- function(path, nametag = NULL, schema = "latest") {
     if (!is.na(tag) && expected %in% all_files) {
       file_names[[id]] <- expected
       parsed <- read_csv_text(file.path(path, expected))
+      parsed$info$quoted <- quoted_digit_rows(
+        file.path(path, expected), parsed$info$header,
+        Filter(function(col) !is.null(col$legacy_quoted_digits),
+               schema_columns(schema, id))
+      )
       file_info[[id]] <- parsed$info
       tables[id] <- list(parsed$data)
     }
@@ -236,6 +241,26 @@ read_csv_text <- function(file) {
     }
   }
   list(data = data, info = info)
+}
+
+# Rows of columns flagged `legacy_quoted_digits` in the schema whose values are
+# quoted digits ("0"/"1" in the file). The normal reader strips quotes, so the
+# column is re-read without quote handling. Only meant for simple numeric
+# columns (no commas or line breaks inside quoted fields).
+quoted_digit_rows <- function(file, header, specs) {
+  out <- list()
+  for (spec in specs) {
+    position <- match(spec$name, header)
+    if (is.na(position)) next
+    values <- tryCatch(
+      fread(file, select = position, quote = "", colClasses = "character",
+            na.strings = "NA", data.table = FALSE, showProgress = FALSE)[[1]],
+      error = function(e) NULL
+    )
+    rows <- which(!is.na(values) & grepl("^\"[0-9]+\"$", values))
+    if (length(rows) > 0) out[[spec$name]] <- rows
+  }
+  out
 }
 
 # Convert user-supplied data frames to the text representation used by rules

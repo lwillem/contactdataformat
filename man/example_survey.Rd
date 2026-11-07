@@ -4,12 +4,15 @@
 \alias{example_survey}
 \title{Synthetic example dataset}
 \usage{
-example_survey(n_participants = 30, seed = 1)
+example_survey(n_participants = 30, seed = 1, with_holiday = FALSE)
 }
 \arguments{
 \item{n_participants}{Number of participants.}
 
 \item{seed}{Random seed.}
+
+\item{with_holiday}{If \code{TRUE}, add the optional \code{holiday} column to the
+survey-day table (\code{sday}).}
 }
 \value{
 A named list of data frames: \code{participant}, \code{contact}, \code{hh}, \code{sday},

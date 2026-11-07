@@ -24,6 +24,14 @@
   accepted spellings, `common_mistakes` only gives hints. New rule R40: a
   record must use one spelling of the contact ID in `contact_common` and
   `contact_extra`.
+* Optional `holiday` column in the survey-day file (`sday`): TRUE if the diary
+  day falls in a school holiday that applies to the participant (regional,
+  not a public-holiday flag), FALSE otherwise, `NA` if the date is unknown.
+  It follows the boolean rule (R08: `TRUE`/`FALSE`, `0`/`1` accepted, `Y`/`N`
+  is an error); quoted `"0"`/`"1"` strings as in Zenodo v1.2 give a warning
+  (R08, legacy form). When the column is present, a manual checklist item
+  (R25) asks that its definition is documented in the dictionary.
+  `example_survey(with_holiday = TRUE)` adds it to the synthetic example.
 * Catalogued but not yet implemented: R28-R33 (content of a restricted
   geography file), R36 (Zenodo record metadata, needs network) and R37
   (silent-failure columns, currently covered by R05).

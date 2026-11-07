@@ -6,6 +6,8 @@
 #'
 #' @param n_participants Number of participants.
 #' @param seed Random seed.
+#' @param with_holiday If `TRUE`, add the optional `holiday` column to the
+#'   survey-day table (`sday`).
 #' @return A named list of data frames: `participant`, `contact`, `hh`, `sday`,
 #'   `participant_extra`, `contact_extra`, `dictionary` and `metadata`.
 #' @export
@@ -13,11 +15,12 @@
 #' tables <- example_survey(n_participants = 10)
 #' names(tables)
 #' head(tables$contact)
-example_survey <- function(n_participants = 30, seed = 1) {
-  withr::with_seed(seed, build_example_survey(n_participants))
+example_survey <- function(n_participants = 30, seed = 1,
+                           with_holiday = FALSE) {
+  withr::with_seed(seed, build_example_survey(n_participants, with_holiday))
 }
 
-build_example_survey <- function(n_participants) {
+build_example_survey <- function(n_participants, with_holiday = FALSE) {
 
   n_hh <- ceiling(n_participants / 2)
   part_id <- sprintf("P%03d", seq_len(n_participants))
@@ -79,6 +82,11 @@ build_example_survey <- function(n_participants) {
     dayofweek = as.POSIXlt(dates)$wday,
     stringsAsFactors = FALSE
   )
+
+  if (with_holiday) {
+    # synthetic: the second week of the example period is a "holiday"
+    sday$holiday <- dates >= as.Date("2011-01-17")
+  }
 
   participant_extra <- data.frame(
     part_id = part_id,

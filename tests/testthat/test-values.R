@@ -216,3 +216,65 @@ test_that("parse_codes understands common dictionary notations", {
   expect_equal(parse_codes("free text"), character())
   expect_equal(parse_codes(NA), character())
 })
+
+# Optional sday$holiday ---------------------------------------------------------
+
+test_that("holiday is optional in the survey-day file", {
+  without <- valid_survey()
+  expect_false("holiday" %in% names(without$sday))
+  expect_clean(check_survey(without))
+
+  with <- example_survey(with_holiday = TRUE)
+  expect_true("holiday" %in% names(with$sday))
+  report <- check_survey(with)
+  expect_clean(report)
+  # the definition must be documented: manual checklist item
+  expect_msg(report, "R25", "holiday")
+  expect_false(any(grepl("holiday", only_rule(check_survey(without), "R25")$message)))
+})
+
+test_that("holiday accepts TRUE/FALSE, 0/1 and NA", {
+  tables <- example_survey(with_holiday = TRUE)
+  tables$sday$holiday[1:3] <- NA
+  expect_clean(check_survey(tables))
+  tables$sday$holiday <- as.integer(tables$sday$holiday)
+  expect_clean(check_survey(tables))
+})
+
+test_that("holiday with text codes is an error", {
+  tables <- example_survey(with_holiday = TRUE)
+  tables$sday$holiday <- ifelse(tables$sday$holiday, "Y", "N")
+  report <- check_survey(tables)
+  expect_hit(report, "R08")
+  expect_equal(only_rule(report, "R08")$column[1], "holiday")
+  expect_msg(report, "R08", "TRUE or FALSE")
+})
+
+test_that("holiday as quoted digits is a warning, not an error (legacy form)", {
+  tables <- example_survey(with_holiday = TRUE)
+  tables$sday$holiday <- as.integer(tables$sday$holiday)
+  dir <- survey_dir(tables)
+  file <- file.path(dir, "DOE_2012_BELGIUM_sday.csv")
+  lines <- readLines(file)
+  header <- strsplit(lines[1], ",")[[1]]
+  pos <- match("\"holiday\"", header)
+  body <- lapply(strsplit(lines[-1], ","), function(f) {
+    if (f[pos] != "NA") f[pos] <- paste0("\"", f[pos], "\"")
+    paste(f, collapse = ",")
+  })
+  writeLines(c(lines[1], unlist(body)), file)
+  report <- check_contact_data(dir, quiet = TRUE)
+  expect_hit(report, "R08", "warning")
+  expect_false("R08" %in% hits(report, "error"))
+  expect_equal(report$status, "PASS WITH WARNINGS")
+  expect_msg(report, "R08", "legacy")
+
+  # unquoted digits in the same column are fine
+  clean <- survey_dir(tables)
+  expect_clean(check_contact_data(clean, quiet = TRUE))
+})
+
+test_that("holiday values in files: TRUE/FALSE pass on disk", {
+  dir <- survey_dir(example_survey(with_holiday = TRUE))
+  expect_clean(check_contact_data(dir, quiet = TRUE))
+})

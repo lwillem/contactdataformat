@@ -109,6 +109,17 @@ rule_r08 <- function(ctx) {
                          "), found ", show_values(x[bad]), ".", hint)
       )
     }
+    quoted <- ctx$file_info[[id]]$quoted[[spec$name]]
+    if (length(quoted) > 0 && !is.null(spec$legacy_quoted_digits)) {
+      out[[length(out) + 1]] <- finding(
+        "R08", variant = "legacy_quoted", file = file, column = spec$name,
+        n_fail = length(quoted), n_total = length(x), rows = quoted,
+        message = paste0(
+          "Quoted digits (\"0\"/\"1\") are a legacy form (e.g. Zenodo v1.2) ",
+          "and accepted for now; write unquoted TRUE/FALSE (or 0/1)."
+        )
+      )
+    }
     if (isFALSE(spec$nullable)) {
       missing <- which(is.na(x))
       if (length(missing) > 0) {

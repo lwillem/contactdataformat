@@ -1,0 +1,682 @@
+# SOCRATES guidelines for data formatting -- machine-readable schema.
+#
+# This file is the single source of truth for the checker: file names, column
+# names, order, types, allowed values, keys, severities and thresholds all live
+# here. Choices that are still open in the guideline are listed under
+# `decisions` and can be changed by editing the value they point to; pass the
+# edited file to the checker with `check_contact_data(path, schema = "<file>")`.
+#
+# Status: guideline version 1.0 DRAFT. It follows the recommended choices of
+# REVIEW_guidelines_vs_flanders2010.md (P1-P11, section 6A.7/6A.8): `cont_id`,
+# `cnt_otherplace`, `part_age_exact`, survey-day file keyed by `part_id`, no
+# `sday_id` in the contact file, TRUE/FALSE booleans (0/1 accepted), UTF-8,
+# optional columns may be absent, column order not enforced, metadata as YAML
+# (socialmixr reads the first .json file of a record as its citation).
+
+schema_format: 1
+guideline_version: "1.0"
+status: draft
+# The reference implementation the guideline was verified against; the checker
+# notes when the installed version is older (R22).
+reference_implementation:
+  socialmixr: "0.7.0"
+  contactsurveys: "0.2.0"
+title: "SOCRATES guidelines for data formatting, version 1.0 (draft)"
+na_token: "NA"
+
+nametag:
+  # NAME_YEAR_COUNTRY with an optional suffix (P4). Edit to change Q1.
+  pattern: '^[A-Z0-9]+_[0-9]{4}_[A-Z0-9]+(_[A-Z0-9]+)*$'
+  example: "DOE_2012_BELGIUM"
+
+options:
+  # `strict`: common-file columns must appear in the guideline order.
+  # `ignore`: only presence is checked (socialmixr joins by name). (Q14)
+  column_order: ignore
+  missing_token_aliases: ["na", "Na", "N/A", "n/a", "NaN", "nan", "null",
+                          "NULL", "None", "none", "-", "."]
+  placeholder_values: ["-99", "-999", "-9999", "999", "9999"]
+  # An age interval with only one bound (e.g. 60+ => est_min = 60, est_max = NA).
+  # The review recommends an explicit upper bound for open bands.
+  allow_open_age_interval: false
+  max_contacts_per_participant: 100
+  max_share_zero_contact_participants: 0.3
+  max_share_missing_participant_age: 0.05
+  max_share_missing_contact_age: 0.5
+  # Index-like first column names that indicate exported row names.
+  rowname_column_names: ["", "X", "V1", "...1", "Unnamed: 0", "row.names",
+                         "rownames", "row_names"]
+  dictionary_extensions: ["xlsx", "csv"]
+
+types:
+  boolean:
+    # TRUE/FALSE is canonical; 0/1 is accepted (POLYMOD, CoMix). Text codes
+    # such as Y/N or yes/no are errors because filters would silently match
+    # nothing. (Q6: edit `values`/`true_values` to change)
+    values: ["TRUE", "FALSE", "0", "1"]
+    true_values: ["TRUE", "1"]
+    description: "TRUE or FALSE (0/1 accepted)"
+  integer:
+    pattern: '^-?[0-9]+$'
+    description: "Whole number"
+  numeric:
+    pattern: '^-?[0-9]+(\.[0-9]+)?([eE][-+]?[0-9]+)?$'
+    description: "Number with '.' as decimal separator"
+  id:
+    pattern: '^[^\s,"]+$'
+    description: "Identifier: string or integer, no whitespace or commas"
+  code:
+    pattern: '^[^\s,"]([^,"]*[^\s,"])?$'
+    description: "Category code: string or integer"
+  date_yyyymmdd:
+    pattern: '^[0-9]{8}$'
+    description: "Calendar date as YYYYMMDD"
+  string:
+    description: "Free text"
+
+code_lists:
+  iso3166_alpha2: [AD, AE, AF, AG, AI, AL, AM, AO, AQ, AR, AS, AT, AU, AW, AX,
+    AZ, BA, BB, BD, BE, BF, BG, BH, BI, BJ, BL, BM, BN, BO, BQ, BR, BS, BT, BV,
+    BW, BY, BZ, CA, CC, CD, CF, CG, CH, CI, CK, CL, CM, CN, CO, CR, CU, CV, CW,
+    CX, CY, CZ, DE, DJ, DK, DM, DO, DZ, EC, EE, EG, EH, ER, ES, ET, FI, FJ, FK,
+    FM, FO, FR, GA, GB, GD, GE, GF, GG, GH, GI, GL, GM, GN, GP, GQ, GR, GS, GT,
+    GU, GW, GY, HK, HM, HN, HR, HT, HU, ID, IE, IL, IM, IN, IO, IQ, IR, IS, IT,
+    JE, JM, JO, JP, KE, KG, KH, KI, KM, KN, KP, KR, KW, KY, KZ, LA, LB, LC, LI,
+    LK, LR, LS, LT, LU, LV, LY, MA, MC, MD, ME, MF, MG, MH, MK, ML, MM, MN, MO,
+    MP, MQ, MR, MS, MT, MU, MV, MW, MX, MY, MZ, NA, NC, NE, NF, NG, NI, NL, "NO",
+    NP, NR, NU, NZ, OM, PA, PE, PF, PG, PH, PK, PL, PM, PN, PR, PS, PT, PW, PY,
+    QA, RE, RO, RS, RU, RW, SA, SB, SC, SD, SE, SG, SH, SI, SJ, SK, SL, SM, SN,
+    SO, SR, SS, ST, SV, SX, SY, SZ, TC, TD, TF, TG, TH, TJ, TK, TL, TM, TN, TO,
+    TR, TT, TV, TW, TZ, UA, UG, UM, US, UY, UZ, VA, VC, VE, VG, VI, VN, VU, WF,
+    WS, YE, YT, ZA, ZM, ZW]
+
+files:
+  participant_common:
+    suffix: "participant_common.csv"
+    kind: common
+    entity: participant
+    required: true
+    key: part_id
+    description: "Participant-level information, one record per participant"
+    columns:
+      - name: part_id
+        type: id
+        nullable: false
+        unique: true
+        aliases: [participant_id, partid, local_id, global_id]
+        description: "Participant (diary) identifier; primary key"
+      - name: hh_id
+        type: id
+        nullable: true   # P5/Q3: set to false to require a household id
+        aliases: [household_id]
+        description: "Household identifier; NA if not collected"
+      - name: part_age_exact
+        type: integer
+        nullable: true
+        range: [0, 110]
+        range_rule: R10
+        aliases: [part_age, participant_age]
+        description: "Exact age in completed years; NA if not exact"
+      - name: part_age_est_min
+        required: false
+        type: integer
+        nullable: true
+        range: [0, 110]
+        range_rule: R10
+        description: "Lower bound of estimated age interval (inclusive)"
+      - name: part_age_est_max
+        required: false
+        type: integer
+        nullable: true
+        range: [0, 110]
+        range_rule: R10
+        description: "Upper bound of estimated age interval (inclusive)"
+      - name: part_gender
+        type: string
+        nullable: true
+        enum: [F, M, O]
+        aliases: [participant_gender, part_sex]
+        description: "F, M or O (other); NA if not collected"
+    foreign_keys:
+      - column: hh_id
+        references: hh_common.hh_id
+        allow_na: true
+
+  participant_extra:
+    suffix: "participant_extra.csv"
+    kind: extra
+    entity: participant
+    common: participant_common
+    required: false
+    description: "Survey-specific participant variables (panel_id goes here)"
+
+  contact_common:
+    suffix: "contact_common.csv"
+    kind: common
+    entity: contact
+    required: true
+    key: cont_id
+    description: "Contact-level information, one record per reported contact"
+    columns:
+      - name: part_id
+        type: id
+        nullable: false
+        aliases: [participant_id, local_id]
+        description: "Participant identifier; foreign key to participant file"
+      - name: cont_id
+        type: id
+        nullable: false
+        unique: true
+        aliases: [cnt_id, contact_id]
+        description: "Contact identifier; primary key"
+      - name: cnt_gender
+        type: string
+        nullable: true
+        enum: [F, M, O]
+        aliases: [cnt_sex]
+        description: "Gender of the contact: F, M, O; NA if not collected"
+      - name: cnt_age_exact
+        type: integer
+        nullable: true
+        range: [0, 110]
+        range_rule: R10
+        description: "Exact age of the contact in years"
+      - name: cnt_age_est_min
+        required: false
+        type: integer
+        nullable: true
+        range: [0, 110]
+        range_rule: R10
+        aliases: [cnt_age_l]
+        description: "Lower bound of estimated contact age (inclusive)"
+      - name: cnt_age_est_max
+        required: false
+        type: integer
+        nullable: true
+        range: [0, 110]
+        range_rule: R10
+        aliases: [cnt_age_r]
+        description: "Upper bound of estimated contact age (inclusive)"
+      - name: cnt_age_multi
+        required: false
+        type: code
+        nullable: true
+        codes_in_dictionary: true
+        description: "Age-class code if ages were reported in categories"
+      - name: cnt_home
+        type: boolean
+        nullable: true
+        group: location
+        description: "Contact at the participant's home"
+      - name: cnt_work
+        type: boolean
+        nullable: true
+        group: location
+        description: "Contact at the participant's workplace"
+      - name: cnt_school
+        type: boolean
+        nullable: true
+        group: location
+        description: "Contact at school"
+      - name: cnt_transport
+        type: boolean
+        nullable: true
+        group: location
+        description: "Contact while using transport"
+      - name: cnt_leisure
+        type: boolean
+        nullable: true
+        group: location
+        description: "Contact during a leisure activity"
+      - name: cnt_otherplace
+        type: boolean
+        nullable: true
+        group: location
+        aliases: [cnt_others, cnt_other]
+        description: "Contact at any other location"
+      - name: frequency_multi
+        type: code
+        nullable: true
+        codes_in_dictionary: true
+        recommended_codes: ["1", "2", "3", "4", "5"]
+        aliases: [cnt_frequency]
+        description: "Frequency category (1 daily ... 5 first time; P10)"
+      - name: duration_exact
+        required: false
+        type: numeric
+        nullable: true
+        range: [0, 1440]
+        description: "Exact duration in minutes"
+      - name: duration_multi
+        type: code
+        nullable: true
+        codes_in_dictionary: true
+        recommended_codes: ["1", "2", "3", "4", "5"]
+        aliases: [cnt_duration]
+        description: "Duration category (1 <5 min ... 5 >=4 h; P10)"
+      - name: phys_contact
+        type: boolean
+        nullable: true
+        aliases: [cnt_touch]
+        description: "Physical contact (TRUE/FALSE)"
+    foreign_keys:
+      - column: part_id
+        references: participant_common.part_id
+        allow_na: false
+
+  contact_extra:
+    suffix: "contact_extra.csv"
+    kind: extra
+    entity: contact
+    common: contact_common
+    required: false
+    description: "Survey-specific contact variables"
+
+  hh_common:
+    suffix: "hh_common.csv"
+    kind: common
+    entity: household
+    required: true
+    key: hh_id
+    description: "Household-level information, one record per household"
+    columns:
+      - name: hh_id
+        type: id
+        nullable: false
+        unique: true
+        aliases: [household_id]
+        description: "Household identifier; primary key"
+      - name: country
+        type: string
+        nullable: false
+        enum_ref: iso3166_alpha2
+        description: "ISO 3166-1 alpha-2 country code"
+      - name: hh_size
+        type: integer
+        nullable: true
+        range: [1, 100]
+        placeholder_values: ["99"]
+        description: "Household size (count); NA if not collected"
+
+  hh_extra:
+    suffix: "hh_extra.csv"
+    kind: extra
+    entity: household
+    common: hh_common
+    required: false
+    description: "Survey-specific household variables"
+
+  sday:
+    suffix: "sday.csv"
+    kind: common
+    entity: sday
+    required: true
+    key: part_id
+    description: "Survey-day information, one record per participant (P3)"
+    columns:
+      - name: part_id
+        type: id
+        nullable: false
+        unique: true
+        description: "Participant identifier; primary key"
+      - name: sday_id
+        type: date_yyyymmdd
+        nullable: true
+        description: "Survey date as YYYYMMDD; a value, not a key (P3, Q4)"
+      - name: day
+        type: integer
+        nullable: true
+        range: [1, 31]
+        description: "Calendar day of sday_id"
+      - name: month
+        type: integer
+        nullable: true
+        range: [1, 12]
+        description: "Calendar month of sday_id"
+      - name: year
+        type: integer
+        nullable: true
+        range: [1900, 2100]
+        description: "Four-digit calendar year of sday_id"
+      - name: dayofweek
+        type: integer
+        nullable: true
+        range: [0, 6]
+        description: "Day of week, 0 = Sunday ... 6 = Saturday"
+    foreign_keys:
+      - column: part_id
+        references: participant_common.part_id
+        allow_na: false
+
+# Files that exist in a restricted record only. The checker flags them when
+# found in a public folder (R27); validation of their content (R28-R33) is
+# planned and meant to run locally.
+restricted_files:
+  geo_restricted:
+    suffix: "geo_restricted.csv"
+    description: "Optional restricted geography file (P24); never public"
+    columns: [part_id, hh_id, zip_code, nis_code, municipality_name,
+              latitude, longitude, geo_reference_year, geo_review_status]
+
+dictionary:
+  basename: "dictionary"
+  required: true
+  fields: [variable, description, type, values]
+
+metadata:
+  basename: "metadata.yaml"
+  # Machine-readable study metadata (P16, P31: not JSON, because socialmixr
+  # takes the first .json file of a record as its citation reference).
+  required_fields: [title, design, mode, sample_size, age_range, region,
+                    diary_days, contact_definition, ethics, licence,
+                    imputation]
+
+recommended_extra:
+  contact_extra:
+    - name: cnt_imputed
+      type: boolean
+      description: "TRUE if the contact is imputed or aggregated (P12)"
+  participant_extra:
+    - name: panel_id
+      type: id
+      description: "Same individual across survey rounds (optional)"
+
+cross_column_rules:
+  age_intervals:
+    - table: participant_common
+      exact: part_age_exact
+      min: part_age_est_min
+      max: part_age_est_max
+    - table: contact_common
+      exact: cnt_age_exact
+      min: cnt_age_est_min
+      max: cnt_age_est_max
+
+record_hygiene:
+  # Files that are not part of the guideline set but belong in a record.
+  allowed_other_files: ["reference.json"]
+  max_json_files: 1
+
+silent_failure_columns: [cnt_home, cnt_work, cnt_school, cnt_transport,
+  cnt_leisure, cnt_otherplace, phys_contact, dayofweek, part_gender, cnt_gender]
+
+privacy:
+  # Column-name tokens (lower case; names are split at non-alphanumerics).
+  geography_tokens_strict: [zip, zipcode, postal, postalcode, postcode, plz,
+    address, street, lat, latitude, lon, lng, longitude, xcoord, ycoord,
+    coord, coords, coordinates]
+  # Allowed only when the metadata declares geography_level as one of the
+  # levels below.
+  geography_tokens_declared: [municipality, city, town, nis, gemeente, commune,
+    postcode_name]
+  geography_declared_levels: [municipality, city, nis]
+  identifier_tokens: [name, firstname, lastname, surname, forename, email,
+    phone, telephone, birthdate, birthday, dob, ssn, passport, iban]
+  # Whole-file names (tokens) that mark a restricted geography file.
+  restricted_file_tokens: [geo, zip, zipcode, postcode, restricted,
+    coordinates, address]
+  # Value-based heuristics for columns that are not in the schema.
+  zip_like: {min: 1000, max: 9992, min_distinct: 30}
+  coordinate_boxes:
+    - {name: belgium, lat: [49.4, 51.6], lon: [2.4, 6.5]}
+
+manual_items:
+  - id: R03
+    title: "NAMETAG content"
+    prompt: "NAMETAG is the surname of the first author of the earliest publication, the publication year and the English country name, and is unique per survey implementation."
+  - id: R25a
+    title: "Kindergarten and daycare"
+    prompt: "Locations beyond the six common ones (kindergarten, daycare, family visit) are mapped as documented (Q2) and kept in the contact extra file."
+  - id: R25b
+    title: "Age-interval bounds"
+    prompt: "Age intervals use the documented bounds convention (inclusive or exclusive) in the dictionary (Q4/C4)."
+  - id: R25c
+    title: "Survey day"
+    prompt: "sday_id is the documented survey day (date of entry or assigned diary day) and the choice is stated in the dictionary (Q4)."
+  - id: R25d
+    title: "Proxy respondents"
+    prompt: "How proxy-reported participants and imputed contacts are coded is documented (Q5, P12)."
+  - id: R24m
+    title: "Metadata content"
+    prompt: "Zenodo title, description, dates and geographic scope are consistent with the data files."
+
+decisions:
+  # Open choices of the guideline. `where` shows which key to edit.
+  - id: Q1
+    topic: "NAMETAG for surveys sharing country and year (suffix rule)"
+    where: "nametag.pattern"
+  - id: Q2
+    topic: "Kindergarten and daycare map to cnt_school (manual item R25a)"
+    where: "manual_items[R25a]; rules.R13"
+  - id: Q3
+    topic: "Is hh_id required (individual surveys)?"
+    where: "files.participant_common.columns[hh_id].nullable"
+  - id: Q4
+    topic: "Assigned diary day vs date of entry; weekday check severity"
+    where: "rules.R12.severities.weekday"
+  - id: Q6
+    topic: "Boolean coding (strict TRUE/FALSE) and missing tokens"
+    where: "types.boolean.values; options.missing_token_aliases"
+  - id: Q14
+    topic: "Severity policy and column order"
+    where: "rules.<id>.severity; options.column_order"
+  - id: Q16
+    topic: "Dictionary format (xlsx and/or long CSV)"
+    where: "options.dictionary_extensions"
+
+rules:
+  - id: R01
+    class: A
+    severity: error
+    severities: {unrecognised: warning}
+    title: "Required files present and named NAMETAG_<name>"
+    ref: "main.tex sec. 2.1, 3, 4"
+  - id: R02
+    class: A
+    severity: error
+    title: "NAMETAG syntax NAME_YEAR_COUNTRY[_SUFFIX], ASCII upper case"
+    ref: "main.tex sec. 2.1"
+  - id: R03
+    class: M
+    severity: manual
+    title: "NAMETAG content is correct and unique"
+    ref: "main.tex sec. 2.1, 6"
+  - id: R04
+    class: A
+    severity: error
+    title: "CSV format: UTF-8, comma, header, no row names, no empty cells"
+    ref: "main.tex sec. 2.1, 2.3"
+  - id: R05
+    class: A
+    severity: error
+    severities: {order: error, extra: error}
+    title: "Common files hold the required columns (optional ones may be absent), no others"
+    ref: "main.tex sec. 4"
+  - id: R06
+    class: X
+    severity: error
+    severities: {shared: warning}
+    title: "Extra files: same key set as common, no duplicated columns"
+    ref: "main.tex sec. 3"
+  - id: R07
+    class: A
+    severity: error
+    severities: {placeholder: warning}
+    title: "Missing values only as NA, no placeholder codes"
+    ref: "main.tex sec. 2.3"
+  - id: R08
+    class: A
+    severity: error
+    title: "Column types (integer, numeric, string, boolean TRUE/FALSE)"
+    ref: "main.tex sec. 4"
+  - id: R09
+    class: A
+    severity: error
+    title: "Enumerations and value ranges"
+    ref: "main.tex sec. 4"
+  - id: R10
+    class: A
+    severity: error
+    title: "Age rules: exact xor interval, min <= max, 0-110"
+    ref: "main.tex sec. 4.1, 4.2"
+  - id: R11
+    class: H
+    severity: warning
+    title: "Age plausibility (share of missing ages)"
+    ref: "REVIEW D6"
+  - id: R12
+    class: A
+    severity: error
+    severities: {weekday: warning}
+    title: "Survey day: valid YYYYMMDD, day/month/year match, weekday"
+    ref: "main.tex sec. 4.4"
+  - id: R13
+    class: A
+    severity: error
+    title: "Location logic: a contact has at least one TRUE location or all NA"
+    ref: "main.tex sec. 4.2, P9"
+  - id: R14
+    class: X
+    severity: error
+    severities: {scheme: note}
+    title: "Category codes are covered by the dictionary"
+    ref: "main.tex sec. 4.2, P10"
+  - id: R15
+    class: X
+    severity: error
+    severities: {phantom: warning, type: warning, skipped: note}
+    title: "Dictionary documents every column with required fields"
+    ref: "main.tex sec. 4.5"
+  - id: R16
+    class: A
+    severity: error
+    title: "Key uniqueness and non-missing keys"
+    ref: "main.tex sec. 2.2, 3"
+  - id: R17
+    class: X
+    severity: error
+    title: "Foreign-key integrity across files"
+    ref: "main.tex sec. 3"
+  - id: R18
+    class: X
+    severity: error
+    severities: {zero_contacts: note}
+    title: "Every participant has a survey-day row; zero-contact participants kept"
+    ref: "REVIEW B6, P7"
+  - id: R19
+    class: X
+    severity: warning
+    title: "Household size is not smaller than participants per household"
+    ref: "REVIEW 4.5"
+  - id: R20
+    class: X
+    severity: warning
+    title: "Panel ids: one individual, distinct part_id per wave"
+    ref: "main.tex sec. 5"
+  - id: R21
+    class: H
+    severity: warning
+    severities: {imputed: note}
+    title: "Contact count plausibility"
+    ref: "REVIEW D6"
+  - id: R22
+    class: A
+    severity: error
+    severities: {skipped: note}
+    title: "socialmixr smoke test (load_survey, contact_matrix)"
+    ref: "REVIEW 6"
+  - id: R23
+    class: A
+    severity: warning
+    title: "Imputation or aggregation is flagged"
+    ref: "REVIEW F3, P12"
+  - id: R24
+    class: A
+    severity: warning
+    title: "Metadata file present and complete"
+    ref: "main.tex sec. 6, P16"
+  - id: R25
+    class: M
+    severity: manual
+    title: "Convention-dependent decisions are documented"
+    ref: "REVIEW Q2, Q4, Q5"
+  - id: R26
+    class: H
+    severity: warning
+    title: "No personal identifiers among column names"
+    ref: "REVIEW 6.6"
+  - id: R27
+    class: A
+    severity: error
+    severities: {coords_values: warning, zip_values: warning}
+    title: "Privacy scan: no ZIP, address or coordinates in the public record"
+    ref: "REVIEW P23"
+  - id: R34
+    class: X
+    severity: error
+    title: "Record hygiene: no CSV that socialmixr would merge unintentionally, at most one JSON"
+    ref: "REVIEW P30, P31"
+  - id: R35
+    class: A
+    severity: error
+    severities: {skipped: note, dictionary_csv: note}
+    title: "Merge simulation: socialmixr load keeps row counts, no merge warnings"
+    ref: "REVIEW P30"
+  - id: R36
+    class: A
+    severity: error
+    planned: true
+    title: "Zenodo record metadata (needs network; contactsurveys)"
+    ref: "REVIEW P32, P38"
+  - id: R37
+    class: A
+    severity: error
+    planned: true
+    title: "Silent-failure columns exist under exact names (currently covered by R05)"
+    ref: "REVIEW P35, P37"
+  - id: R38
+    class: X
+    severity: error
+    title: "Identifier type is the same in every file (integer or string)"
+    ref: "REVIEW 6A T5"
+  - id: R39
+    class: A
+    severity: error
+    title: "Silent-wrong-result values beyond R08-R10 (diary_weight numeric, no NA)"
+    ref: "REVIEW 6A"
+  - id: R28
+    class: X
+    severity: error
+    planned: true
+    title: "Restricted geography file: one row per part_id, keys match"
+    ref: "REVIEW P24"
+  - id: R29
+    class: A
+    severity: error
+    planned: true
+    title: "ZIP format (BE: four digits, 1000-9992, string)"
+    ref: "REVIEW P24"
+  - id: R30
+    class: X
+    severity: error
+    planned: true
+    title: "ZIP and municipality consistent with the reference list"
+    ref: "REVIEW P26"
+  - id: R31
+    class: X
+    severity: warning
+    planned: true
+    title: "Household members share ZIP/municipality"
+    ref: "REVIEW F13"
+  - id: R32
+    class: X
+    severity: error
+    planned: true
+    title: "No unreviewed geography status left"
+    ref: "REVIEW P27"
+  - id: R33
+    class: X
+    severity: warning
+    planned: true
+    title: "Geography consistent with declared region"
+    ref: "REVIEW P25"

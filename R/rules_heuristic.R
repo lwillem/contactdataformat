@@ -85,6 +85,9 @@ rule_r24 <- function(ctx) {
   if (identical(ctx$source, "memory") && is.null(ctx$metadata)) {
     return(NULL)
   }
+  if (identical(ctx$source, "folder") && is.na(ctx$nametag)) {
+    return(NULL)
+  }
   if (is.null(ctx$metadata)) {
     return(finding(
       "R24",

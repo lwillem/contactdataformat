@@ -18,13 +18,17 @@ rule_r01 <- function(ctx) {
 
   tag <- ctx$nametag
   if (is.na(tag)) {
-    out[[1]] <- finding(
+    return(finding(
       "R01",
       message = paste0(
-        "No file name ends with a known suffix (e.g. `_participant_common.csv`), ",
-        "so the NAMETAG cannot be determined."
+        "No file name ends with a known suffix (e.g. `_participant_common.csv`, ",
+        "`_contact_common.csv`, `_hh_common.csv`, `_sday.csv`), so the NAMETAG ",
+        "cannot be determined and no further file checks are possible. ",
+        "Files found: ", found_files_label(ctx), ". Rename the files as ",
+        "`NAMETAG_<name>.csv` (all data files must be `.csv`), or pass ",
+        "`nametag =` to see which files are missing."
       )
-    )
+    ))
   }
   if (length(ctx$nametag_candidates) > 1) {
     out[[length(out) + 1]] <- finding(
@@ -72,6 +76,24 @@ rule_r01 <- function(ctx) {
     )
   }
   bind_findings(out)
+}
+
+# Short description of the files in the folder, for messages
+found_files_label <- function(ctx, max_n = 6) {
+  files <- ctx$all_files
+  if (length(files) == 0) {
+    return("none")
+  }
+  shown <- paste0("`", utils::head(files, max_n), "`", collapse = ", ")
+  if (length(files) > max_n) {
+    shown <- paste0(shown, ", ... (", length(files), " in total)")
+  }
+  not_csv <- files[!grepl("\\.csv$", files, ignore.case = TRUE)]
+  if (length(not_csv) > 0) {
+    shown <- paste0(shown, "; ", length(not_csv),
+                    " file(s) are not `.csv` and are ignored")
+  }
+  shown
 }
 
 rule_r02 <- function(ctx) {

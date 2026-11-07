@@ -89,7 +89,13 @@ print.socrates_report <- function(x, ...) {
                         `PASS WITH WARNINGS` = cli::col_yellow(x$status),
                         cli::col_green(x$status))
   cli::cli_h1("SOCRATES data check: {status_text}")
-  tag <- if (is.na(meta$nametag)) "(in-memory tables)" else meta$nametag
+  tag <- if (!is.na(meta$nametag)) {
+    meta$nametag
+  } else if (identical(meta$source, "memory")) {
+    "(in-memory tables)"
+  } else {
+    "(could not be determined)"
+  }
   cli::cli_text(
     "NAMETAG {.val {tag}}, guideline {meta$guideline_version} ",
     "({meta$guideline_status}), contactdataformat {meta$package_version}"

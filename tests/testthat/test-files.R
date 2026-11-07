@@ -159,3 +159,22 @@ test_that("R06: extra files match the common files one-to-one", {
   shared$participant_extra$cnt_id <- "x"
   expect_hit(check_survey(shared), "R06", "warning")
 })
+
+test_that("a folder without recognisable file names gives one clear finding", {
+  dir <- withr::local_tempdir()
+  writeLines(c("local_id,age", "1,30"), file.path(dir, "individualsurvey_participants.txt"))
+  writeLines(c("local_id,sex", "1,F"), file.path(dir, "individualsurvey_contacts.txt"))
+  report <- check_contact_data(dir, quiet = TRUE)
+  r01 <- only_rule(report, "R01")
+  expect_equal(nrow(r01), 1)
+  expect_match(r01$message, "NAMETAG")
+  expect_match(r01$message, "individualsurvey_participants.txt")
+  expect_match(r01$message, "not `.csv`")
+  expect_false(any(grepl("NA_", report$findings$message)))
+  expect_false("R24" %in% hits(report))
+  out <- capture.output(print(report), type = "message")
+  expect_match(paste(out, collapse = " "), "could not be determined")
+  # with a NAMETAG the missing files are named
+  named <- check_contact_data(dir, nametag = "DOE_2012_BELGIUM", quiet = TRUE)
+  expect_match(paste(only_rule(named, "R01")$message), "DOE_2012_BELGIUM_hh_common.csv")
+})

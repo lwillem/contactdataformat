@@ -24,13 +24,14 @@ pak::pak("lwillem/contactdataformat")
 library(contactdataformat)
 
 report <- check_contact_data("path/to/NAMETAG_dataset_folder")
-report                       # status PASS / PASS WITH WARNINGS / FAIL
+report                       # status PASS / PASS WITH WARNINGS / FAIL (errors must be fixed; a record with only warnings can be submitted)
 summary(report)
 as.data.frame(report)        # findings: rule_id, severity, file, column, ...
 report_write(report, "report.md")   # or .csv / .json
 
 list_rules()                 # rule catalogue (classes A, X, H, M)
-check_contact_data(path, waive = c(R12 = "diary day is the assigned day"))
+open_decisions("open")       # guideline choices that are still open
+check_contact_data(path, waive = c(R21 = "group contacts are documented"))   # waive a rule, with a reason
 check_contact_data(path, smoke_test = TRUE)   # also load with socialmixr
 ```
 
@@ -45,10 +46,14 @@ dictionary) and at most one `.json`, because socialmixr reads the first
 
 | Class | Meaning | Examples |
 |---|---|---|
-| A | automatic, schema driven | file names, columns, types, allowed values, age encoding, location logic, survey-day dates, key uniqueness, privacy scan, socialmixr smoke test and merge simulation |
-| X | automatic, cross-table | extra files vs common files, foreign keys, dictionary coverage, household size, record hygiene (no CSV that socialmixr would merge), identifier types |
-| H | heuristic, reported as warnings | contact counts, share of missing ages, identifier-like column names |
+| A | automatic, schema driven | file names, columns, types (booleans are `TRUE`/`FALSE` only, `0/1` is an error), allowed values (`country` is required and never `NA`; text for several countries or a region is a warning), age encoding, location logic, survey-day dates, key uniqueness, privacy scan, socialmixr smoke test and merge simulation |
+| X | automatic, cross-table | extra files vs common files, foreign keys, dictionary coverage, household size, panel ids (one individual per `panel_id`: same gender, plausible exact age), record hygiene (no CSV that socialmixr would merge), identifier types |
+| H | heuristic, mostly warnings | contact counts, share of missing ages and of missing survey dates, implausible household size (above 20), columns that are entirely `NA`, personal-identifier column names (direct identifiers such as e-mail or phone are errors, the word `name` alone a warning) |
 | M | manual checklist | NAMETAG content, documented conventions, Zenodo record content |
+
+The checker also reads a dictionary with a deviating file name (for example
+`NAMETAG_data_dictionary.xlsx`), reports the name as an error and still checks
+its content, and names near-miss column names (`Cnt_Gender`) in its messages.
 
 Rules R28-R33 (content of a restricted geography file), R36 (Zenodo record
 metadata) and R37 (covered by R05) are in the catalogue but not yet implemented. **Rule R27 flags ZIP codes, addresses and coordinates in a

@@ -59,8 +59,7 @@ The checker also reads a dictionary with a deviating file name (for example
 `NAMETAG_data_dictionary.xlsx`), reports the name as an error and still checks
 its content, and names near-miss column names (`Cnt_Gender`) in its messages.
 
-Rules R28-R33 (content of a restricted geography file), R36 (Zenodo record
-metadata) and R37 (covered by R05) are in the catalogue but not yet implemented. **Rule R27 flags ZIP codes, addresses and coordinates in a
+Rules R28-R33 (content of a restricted geography file) and R37 (covered by R05) are in the catalogue but not yet implemented. Rule R36 (Zenodo metadata) gives no finding for a local folder; it checks the `NAMETAG_reference.json` of a folder downloaded with contactsurveys, and `check_zenodo_record()` (optional) checks a published record by DOI. **Rule R27 flags ZIP codes, addresses and coordinates in a
 public record**, including a restricted geography file placed in the same
 folder, because `socialmixr` merges every CSV that shares a column name with the
 main tables.

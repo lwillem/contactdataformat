@@ -607,8 +607,8 @@ decisions:
   - id: Q40
     status: open
     topic: "Zenodo metadata strictness (version string, References)"
-    decision: "Conventions written down 2026-11-25 in main.tex (section on the Zenodo record), in line with what contactsurveys::get_citation() and download_survey() read: creators as persons with family and given name, title, publication date, version, references, open files, community. Automatic check (R36) still planned."
-    where: "(R25g manual item; R36 planned)"
+    decision: "Conventions written down 2026-11-25 in main.tex (section on the Zenodo record), in line with what contactsurveys::get_citation() and download_survey() read: creators as persons with family and given name, title, publication date, version, references, open files, community. Automatic check: rule R36 on a downloaded NAMETAG_reference.json and the optional check_zenodo_record()."
+    where: "(R25g manual item; rule R36, check_zenodo_record())"
   - id: COUNTRY
     status: decided
     topic: "Country column: required, never NA; text for several countries or a region"
@@ -804,9 +804,9 @@ rules:
   - id: R36
     class: A
     severity: error
-    planned: true
-    title: "Zenodo record metadata (needs network; contactsurveys)"
-    ref: "REVIEW P32, P38"
+    severities: {title_content: warning, creators_name: warning, version: warning, doi: warning, references: note, license_other: note, keywords: note, affiliation: note, nametag_creator: note}
+    title: "Zenodo metadata: NAMETAG_reference.json of a downloaded record, or check_zenodo_record(); no finding for a local folder without it"
+    ref: "main.tex sec. 7"
   - id: R37
     class: A
     severity: error

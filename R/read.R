@@ -63,9 +63,18 @@ read_socrates <- function(path, nametag = NULL, schema = "latest") {
     read_dictionary(file.path(path, dictionary_file), tag, schema)
   }
 
+  # Zenodo metadata, when the folder was downloaded with contactsurveys
+  zenodo <- NULL
+  reference <- all_files[grepl("_reference\\.json$", all_files)]
+  if (length(reference) > 0) {
+    zenodo <- tryCatch(zenodo_from_file(file.path(path, reference[1])),
+                       error = function(e) NULL)
+  }
+
   ctx <- structure(
     list(
-      schema = schema, source = "folder", path = path, nametag = tag,
+      schema = schema, source = "folder", path = path, zenodo = zenodo,
+      nametag = tag,
       nametag_candidates = names(inferred), tables = tables,
       file_names = file_names, file_info = file_info,
       all_files = all_files, misnamed = misnamed,

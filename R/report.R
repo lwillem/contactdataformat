@@ -93,6 +93,8 @@ print.socrates_report <- function(x, ...) {
     meta$nametag
   } else if (identical(meta$source, "memory")) {
     "(in-memory tables)"
+  } else if (identical(meta$source, "zenodo")) {
+    "(Zenodo metadata)"
   } else {
     "(could not be determined)"
   }

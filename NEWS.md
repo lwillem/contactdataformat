@@ -17,6 +17,11 @@
   is: rename a misspelling (`cnt_others`), remove a column that belongs to
   another table (`sday_id`), or move a survey-specific variable to the extra file.
 * The manual item R03 (NAMETAG content) is removed.
+* R36 (Zenodo metadata) is built. A local folder has no Zenodo metadata and
+  gets no finding; a folder downloaded with contactsurveys is checked through
+  its `NAMETAG_reference.json`, and the new optional `check_zenodo_record()`
+  checks a published record (DOI, record number, URL or saved JSON; the network
+  is used only for a DOI, and only the record number is sent).
 * `hh_size` may be categorical (decision Q54): a count, an open-ended category
   `5+`, or `nursing home`; other text is an error (R08).
 * Dictionary layout (decision Q53): the guideline asks for the header

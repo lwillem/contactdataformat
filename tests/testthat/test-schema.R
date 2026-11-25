@@ -29,7 +29,7 @@ test_that("the rule catalogue lists classes, severities and implementation", {
                 info = id)
   }
   expect_setequal(rules$rule_id[!rules$implemented],
-                  c(sprintf("R%d", 28:33), "R36", "R37"))
+                  c(sprintf("R%d", 28:33), "R37"))
 })
 
 test_that("decisions are listed with status and point to schema keys", {

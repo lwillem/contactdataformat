@@ -8,7 +8,7 @@ test_that("R01: required files, file names and unrecognised files", {
   expect_msg(report, "R01", "hh_common")
 
   dir <- survey_dir(tables)
-  file.remove(file.path(dir, "DOE_2012_BELGIUM_dictionary.csv"))
+  file.remove(file.path(dir, "DOE_2012_BELGIUM_dictionary.xlsx"))
   expect_hit(check_contact_data(dir, quiet = TRUE), "R01")
 
   dir <- survey_dir(tables)
@@ -22,24 +22,56 @@ test_that("R01: required files, file names and unrecognised files", {
   writeLines(c("a,b", "1,2"), file.path(dir, "DOE_2012_BELGIUM_timeuse.csv"))
   report <- check_contact_data(dir, quiet = TRUE)
   expect_hit(report, "R01", "warning")
+  expect_msg(report, "R01", "not part of the guideline file set")
   expect_true(report$passed)
+  # other files with the NAMETAG are allowed, e.g. time use or locations
+  dir <- survey_dir(tables)
+  writeLines(c("a,b", "1,2"), file.path(dir, "DOE_2012_BELGIUM_participants_location.csv"))
+  expect_true(check_contact_data(dir, quiet = TRUE)$passed)
+
+  # a CSV with another prefix seems to belong to another record: error
+  dir <- survey_dir(tables)
+  writeLines(c("a,b", "1,2"), file.path(dir, "OTHER_2012_BELGIUM_timeuse.csv"))
+  report <- check_contact_data(dir, quiet = TRUE)
+  expect_hit(report, "R01")
+  expect_msg(report, "R01", "another record")
+
+  # core file with a different prefix (also a different year)
+  dir <- survey_dir(tables)
+  file.rename(file.path(dir, "DOE_2012_BELGIUM_sday.csv"),
+              file.path(dir, "DOE_2013_BELGIUM_sday.csv"))
+  report <- check_contact_data(dir, quiet = TRUE)
+  expect_hit(report, "R01")
+  expect_msg(report, "R01", "more than one NAMETAG")
 
   expect_hit(check_survey(modifyList(tables, list(hh = NULL))), "R01")
 })
 
-test_that("R02: NAMETAG syntax", {
+test_that("R02: NAMETAG form is a recommendation", {
   tables <- valid_survey()
   expect_clean(check_contact_data(survey_dir(tables, "DOE_2012_BELGIUM_PLATO"),
                                   quiet = TRUE))
-  for (bad in c("doe_2012_belgium", "DOE_12_BELGIUM", "DOE_BELGIUM")) {
-    report <- check_contact_data(survey_dir(tables, bad), quiet = TRUE)
-    expect_hit(report, "R02")
+  # NAME_YEAR without suffix is the recommended form too
+  expect_clean(check_contact_data(survey_dir(tables, "DOE_2012"), quiet = TRUE))
+  # deviating names are notes, not errors
+  for (odd in c("doe_2012_belgium", "DOE_12_BELGIUM", "DOE_BELGIUM", "CoMix_BE")) {
+    report <- check_contact_data(survey_dir(tables, odd), quiet = TRUE)
+    expect_msg(report, "R02", "recommended form")
+    expect_hit(report, "R02", "note")
+    expect_false("R02" %in% hits(report, "error"))
+    expect_true(report$passed)
   }
-  # a documented legacy prefix (year first) is a warning, not an error
+  # a year-first prefix gets its own note
   legacy <- check_contact_data(survey_dir(tables, "2010_Willem_BELGIUM"),
                                quiet = TRUE)
-  expect_msg(legacy, "R02", "older prefix")
+  expect_msg(legacy, "R02", "starts with the year")
+  expect_hit(legacy, "R02", "note")
   expect_false("R02" %in% hits(legacy, "error"))
+  # only a name that cannot serve as a file name prefix is an error
+  bad <- check_contact_data(survey_dir(tables), nametag = "DOE 2012+X",
+                            quiet = TRUE)
+  expect_hit(bad, "R02")
+  expect_msg(bad, "R02", "file name prefix")
 })
 
 test_that("R04: CSV format problems", {
@@ -178,7 +210,6 @@ test_that("a folder without recognisable file names gives one clear finding", {
   expect_match(r01$message, "individualsurvey_participants.txt")
   expect_match(r01$message, "not `.csv`")
   expect_false(any(grepl("NA_", report$findings$message)))
-  expect_false("R24" %in% hits(report))
   expect_match(printed(report), "could not be determined")
   # with a NAMETAG the missing files are named
   named <- check_contact_data(dir, nametag = "DOE_2012_BELGIUM", quiet = TRUE)
@@ -187,9 +218,32 @@ test_that("a folder without recognisable file names gives one clear finding", {
 
 test_that("R01 mentions a dictionary file in an unsupported format", {
   dir <- survey_dir()
-  file.remove(file.path(dir, "DOE_2012_BELGIUM_dictionary.csv"))
-  writeLines("x", file.path(dir, "DOE_2012_BELGIUM_dictionary (1).xls"))
+  file.remove(file.path(dir, "DOE_2012_BELGIUM_dictionary.xlsx"))
+  writeLines("x", file.path(dir, "DOE_2012_BELGIUM_dictionary (1).ods"))
   expect_msg(check_contact_data(dir, quiet = TRUE), "R01", "ignored")
+})
+
+test_that("R01: a misnamed dictionary is reported and still checked", {
+  for (name in c("DOE_2012_BELGIUM_data_dictionary.xlsx",
+                 "DOE_2012_BELGIUM_DICTIONARY.xlsx")) {
+    dir <- survey_dir()
+    file.rename(file.path(dir, "DOE_2012_BELGIUM_dictionary.xlsx"),
+                file.path(dir, name))
+    report <- check_contact_data(dir, quiet = TRUE)
+    expect_msg(report, "R01", "does not follow the naming")
+    expect_false(any(grepl("more than one NAMETAG", only_rule(report, "R01")$message)))
+    # content was read: a dictionary without a sheet for a file is reported
+    expect_false(any(grepl("is missing", only_rule(report, "R01")$message)))
+  }
+})
+
+test_that("R05 hints at a near-miss column name", {
+  tables <- valid_survey()
+  names(tables$contact)[names(tables$contact) == "cnt_gender"] <- "Cnt_Gender"
+  names(tables$participant)[names(tables$participant) == "part_gender"] <- "part_gendr"
+  report <- check_survey(tables)
+  expect_msg(report, "R05", "found `Cnt_Gender`")
+  expect_msg(report, "R05", "found `part_gendr`")
 })
 
 test_that("R06 reports shared columns of an extra file once", {

@@ -124,3 +124,56 @@ test_that("R20: panel ids", {
   other_day$participant_extra$panel_id[2] <- other_day$participant_extra$panel_id[1]
   expect_false("R20" %in% hits(check_survey(other_day), "warning"))
 })
+
+test_that("R41: a part_id has one panel_id, in every file", {
+  # forward: the same part_id under two panel_ids
+  tables <- valid_survey()
+  extra <- tables$participant_extra
+  tables$participant_extra <- rbind(extra[1, ], extra[1, ], extra[-1, ])
+  tables$participant_extra$panel_id[2] <- "OTHER"
+  expect_hit(check_survey(tables), "R41", "error")
+
+  # reverse: panel_id repeated in sday must agree with participant_extra
+  copy <- valid_survey()
+  copy$sday$panel_id <- copy$participant_extra$panel_id[
+    match(copy$sday$part_id, copy$participant_extra$part_id)]
+  expect_false("R41" %in% hits(check_survey(copy), "error"))
+  copy$sday$panel_id[1] <- "OTHER"
+  expect_hit(check_survey(copy), "R41", "error")
+
+  # several part_id per panel_id (several waves) is fine
+  waves <- valid_survey()
+  waves$participant_extra$panel_id[2] <- waves$participant_extra$panel_id[1]
+  expect_false("R41" %in% hits(check_survey(waves), "error"))
+})
+
+test_that("R20: summary of the panel ids", {
+  tables <- valid_survey()
+  tables$participant_extra$panel_id[2] <- tables$participant_extra$panel_id[1]
+  report <- check_survey(tables)
+  expect_hit(report, "R20", "note")
+  expect_msg(report, "R20", "29 individual\\(s\\), 1 with more than one")
+  expect_true(report$passed)
+})
+
+test_that("R45: one panel_id is one person", {
+  link <- function(tables) {
+    tables$participant_extra$panel_id[2] <- tables$participant_extra$panel_id[1]
+    tables
+  }
+  # same person, consistent gender and age (a day apart): clean
+  ok <- link(valid_survey())
+  ok$participant$part_gender[2] <- ok$participant$part_gender[1]
+  ok$participant$part_age_exact[2] <- ok$participant$part_age_exact[1]
+  expect_false("R45" %in% hits(check_survey(ok), "warning"))
+
+  gender <- ok
+  gender$participant$part_gender[2] <- "F"
+  gender$participant$part_gender[1] <- "M"
+  expect_msg(check_survey(gender), "R45", "part_gender")
+  expect_hit(check_survey(gender), "R45", "warning")
+
+  age <- ok
+  age$participant$part_age_exact[2] <- age$participant$part_age_exact[1] + 20L
+  expect_msg(check_survey(age), "R45", "exact age")
+})

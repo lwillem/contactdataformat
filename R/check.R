@@ -32,7 +32,7 @@
 #' report$status
 #'
 #' # waive a rule, with a reason
-#' check_contact_data(dir, waive = c(R24 = "metadata is on Zenodo"),
+#' check_contact_data(dir, waive = c(R21 = "group contacts are documented"),
 #'                    quiet = TRUE)$status
 check_contact_data <- function(path,
                                nametag = NULL,
@@ -64,7 +64,6 @@ check_contact_data <- function(path,
 #' @param participant_extra,contact_extra,hh_extra Optional extra tables.
 #' @param dictionary Optional data frame in long format with columns `file`,
 #'   `variable`, `description`, `type` and `values`.
-#' @param metadata Optional named list with study metadata.
 #' @param ... Passed on to the checker: `rules`, `skip`, `waive`, `quiet`,
 #'   `stop_on_error`.
 #' @inheritParams check_contact_data
@@ -82,7 +81,6 @@ check_tables <- function(participant,
                          contact_extra = NULL,
                          hh_extra = NULL,
                          dictionary = NULL,
-                         metadata = NULL,
                          nametag = NULL,
                          schema = "latest",
                          ...) {
@@ -111,8 +109,7 @@ check_tables <- function(participant,
       tables = tables, file_names = list(), file_info = list(),
       all_files = character(), misnamed = character(),
       unrecognised = character(), restricted = character(),
-      dictionary = dict, dictionary_file = NULL, metadata = metadata,
-      metadata_file = NULL, smoke_test = FALSE,
+      dictionary = dict, dictionary_file = NULL, smoke_test = FALSE,
       cache = new.env(parent = emptyenv())
     ),
     class = "socrates_data"

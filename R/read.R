@@ -11,7 +11,7 @@
 #' @inheritParams read_schema
 #' @return An object of class `socrates_data`: a list with the parsed
 #'   `tables` (named by schema file id), `file_names`, per-file format
-#'   information (`file_info`), the dictionary and metadata when present.
+#'   information (`file_info`) and the dictionary when present.
 #' @export
 #' @examples
 #' dir <- withr::local_tempdir()
@@ -48,18 +48,17 @@ read_socrates <- function(path, nametag = NULL, schema = "latest") {
   recognised <- unlist(file_names, use.names = FALSE)
   misnamed <- setdiff(find_misnamed(all_files, known, tag), recognised)
   dictionary_file <- find_dictionary(all_files, tag, schema)
-  metadata_file <- paste0(tag, "_", schema$metadata$basename)
-  metadata_file <- if (metadata_file %in% all_files) metadata_file else NULL
-  other <- setdiff(all_files, c(recognised, misnamed, dictionary_file,
-                                metadata_file))
+  dictionary_misnamed <- FALSE
+  if (is.null(dictionary_file)) {
+    dictionary_file <- find_dictionary_near_miss(all_files, tag, schema)
+    dictionary_misnamed <- !is.null(dictionary_file)
+  }
+  other <- setdiff(all_files, c(recognised, misnamed, dictionary_file))
   csv_other <- other[grepl("\\.csv$", other, ignore.case = TRUE)]
   restricted <- csv_other[restricted_file_name(csv_other, schema)]
 
   dictionary <- if (!is.null(dictionary_file)) {
     read_dictionary(file.path(path, dictionary_file), tag, schema)
-  }
-  metadata <- if (!is.null(metadata_file)) {
-    read_metadata(file.path(path, metadata_file))
   }
 
   ctx <- structure(
@@ -70,8 +69,9 @@ read_socrates <- function(path, nametag = NULL, schema = "latest") {
       all_files = all_files, misnamed = misnamed,
       unrecognised = setdiff(csv_other, restricted),
       restricted = restricted, dictionary = dictionary,
-      dictionary_file = dictionary_file, metadata = metadata,
-      metadata_file = metadata_file, cache = new.env(parent = emptyenv())
+      dictionary_file = dictionary_file,
+      dictionary_misnamed = dictionary_misnamed,
+      cache = new.env(parent = emptyenv())
     ),
     class = "socrates_data"
   )
@@ -136,18 +136,27 @@ known_suffixes <- function(schema) {
   main <- purrr::map_chr(schema$files, "suffix")
   restricted <- purrr::map_chr(schema$restricted_files, "suffix")
   dict <- paste0(schema$dictionary$basename,
-                 ".", schema$options$dictionary_extensions)
-  unname(c(main, restricted, dict, schema$metadata$basename))
+                 ".", c(unlist(schema$options$dictionary_extensions),
+                        unlist(schema$options$dictionary_local_extensions)))
+  unname(c(main, restricted, dict))
 }
 
 # Prefixes (candidate NAMETAGs) of files that end in a known suffix, most
 # frequent first
 infer_nametags <- function(files, suffixes) {
-  prefixes <- character()
-  for (suffix in suffixes) {
+  prefixes_of <- function(suffix) {
     pattern <- paste0("^(.+)_", gsub(".", "\\.", suffix, fixed = TRUE), "$")
     hit <- files[grepl(pattern, files)]
-    prefixes <- c(prefixes, sub(pattern, "\\1", hit))
+    sub(pattern, "\\1", hit)
+  }
+  prefixes <- unlist(lapply(suffixes, prefixes_of))
+  # `NAMETAG_data_dictionary.xlsx` would give the prefix `NAMETAG_data`: a
+  # prefix that only a dictionary file suggests is not a second NAMETAG
+  dict <- grepl("dictionary", suffixes, fixed = TRUE)
+  from_dict <- unlist(lapply(suffixes[dict], prefixes_of))
+  from_main <- unlist(lapply(suffixes[!dict], prefixes_of))
+  if (length(from_main) > 0) {
+    prefixes <- c(from_main, from_dict[from_dict %in% from_main])
   }
   counts <- sort(table(prefixes), decreasing = TRUE)
   stats::setNames(as.integer(counts), names(counts))
@@ -165,8 +174,25 @@ find_misnamed <- function(files, suffixes, tag) {
 
 find_dictionary <- function(files, tag, schema) {
   candidates <- paste0(tag, "_", schema$dictionary$basename, ".",
-                       schema$options$dictionary_extensions)
+                       c(unlist(schema$options$dictionary_extensions),
+                         unlist(schema$options$dictionary_local_extensions)))
   hit <- candidates[candidates %in% files]
+  if (length(hit) == 0) NULL else hit[1]
+}
+
+# A dictionary that starts with the NAMETAG but is named differently
+# (`NAMETAG_data_dictionary.xlsx`, `NAMETAG_DICTIONARY.xlsx`): still read, so
+# its content is checked, while R01 reports the name.
+find_dictionary_near_miss <- function(files, tag, schema) {
+  if (is.na(tag)) {
+    return(NULL)
+  }
+  extensions <- c(unlist(schema$options$dictionary_extensions),
+                  unlist(schema$options$dictionary_local_extensions))
+  ext_ok <- tolower(tools::file_ext(files)) %in% extensions
+  name_ok <- grepl(schema$dictionary$basename, files, ignore.case = TRUE) &
+    startsWith(tolower(files), tolower(paste0(tag, "_")))
+  hit <- files[ext_ok & name_ok]
   if (length(hit) == 0) NULL else hit[1]
 }
 
@@ -257,7 +283,7 @@ as_text_table <- function(x) {
   x
 }
 
-# Dictionary and metadata ------------------------------------------------------
+# Dictionary ------------------------------------------------------
 
 dictionary_field_aliases <- list(
   file = c("file", "table", "sheet"),
@@ -361,7 +387,9 @@ read_excel_dictionary <- function(file, nametag, schema) {
   sheets <- readxl::excel_sheets(file)
   pieces <- lapply(sheets, function(sheet) {
     d <- as.data.frame(
-      readxl::read_excel(file, sheet = sheet, col_types = "text"),
+      suppressMessages(
+        readxl::read_excel(file, sheet = sheet, col_types = "text")
+      ),
       stringsAsFactors = FALSE
     )
     d$file <- sheet
@@ -372,17 +400,4 @@ read_excel_dictionary <- function(file, nametag, schema) {
   found <- unique(unlist(lapply(normed, `[[`, "found_fields")))
   list(data = do.call(rbind, lapply(normed, `[[`, "data")),
        found_fields = found)
-}
-
-read_metadata <- function(file) {
-  tryCatch(
-    {
-      parsed <- yaml::read_yaml(file)
-      if (!is.list(parsed)) {
-        stop("the file does not contain key: value pairs", call. = FALSE)
-      }
-      parsed
-    },
-    error = function(e) structure(list(), parse_error = conditionMessage(e))
-  )
 }

@@ -1,4 +1,4 @@
-# Heuristic, metadata, privacy rules: R21, R23-R27 -------------------------------
+# Heuristic, metadata, privacy rules: R21, R23-R27, R42-R44 -------------------------------
 
 rule_r21 <- function(ctx) {
   schema <- ctx$schema
@@ -44,14 +44,104 @@ rule_r21 <- function(ctx) {
   bind_findings(out)
 }
 
-# Does the metadata declare imputation or aggregation?
-declares_imputation <- function(metadata) {
-  value <- metadata$imputation
-  if (is.null(value) || length(value) == 0 || all(is.na(value))) {
-    return(FALSE)
+# R42: implausible household size ------------------------------------------
+
+rule_r42 <- function(ctx) {
+  size <- get_column(ctx, "hh_common", "hh_size")
+  if (is.null(size)) {
+    return(NULL)
   }
-  text <- tolower(trimws(paste(value, collapse = " ")))
-  !text %in% c("", "no", "none", "false", "n", "not applicable", "n/a")
+  limit <- ctx$schema$options$max_plausible_hh_size
+  value <- to_number(size)
+  bad <- which(!is.na(value) & value > limit)
+  if (length(bad) == 0) {
+    return(NULL)
+  }
+  finding(
+    "R42", file = file_label(ctx, "hh_common"), column = "hh_size",
+    n_fail = length(bad), n_total = length(size), rows = bad,
+    message = paste0(
+      length(bad), " household(s) have `hh_size` above ", limit, " (",
+      show_values(size[bad]), "); check for data entry errors or ",
+      "institutional households."
+    )
+  )
+}
+
+# R43: columns that are entirely NA ------------------------------------------
+
+rule_r43 <- function(ctx) {
+  schema <- ctx$schema
+  out <- list()
+  for (id in schema_ids(schema, "common")) {
+    tab <- ctx$tables[[id]]
+    if (is.null(tab) || nrow(tab) == 0) next
+    file <- file_label(ctx, id)
+    empty <- names(tab)[vapply(tab, function(x) all(is.na(x)), logical(1))]
+    if (length(empty) == 0) next
+    location <- intersect(
+      purrr::map_chr(Filter(function(col) identical(col$group, "location"),
+                            schema_columns(schema, id)), "name"),
+      names(tab)
+    )
+    if (length(location) > 0 && all(location %in% empty)) {
+      out[[length(out) + 1]] <- finding(
+        "R43", variant = "location", file = file, n_fail = length(location),
+        n_total = ncol(tab),
+        message = paste0(
+          "All location columns are entirely `NA` (", collapse_names(location),
+          "): no contact matrix by setting can be made from this record."
+        )
+      )
+      empty <- setdiff(empty, location)
+    }
+    if (length(empty) > 0) {
+      out[[length(out) + 1]] <- finding(
+        "R43", file = file, n_fail = length(empty), n_total = ncol(tab),
+        message = paste0(
+          length(empty), " of ", ncol(tab),
+          if (length(empty) == 1) " columns is" else " columns are",
+          " entirely `NA`: ",
+          collapse_names(empty), ". Fine if not collected; they cannot be ",
+          "used in analyses."
+        )
+      )
+    }
+  }
+  bind_findings(out)
+}
+
+# R44: share of participants without a survey date ----------------------------
+
+rule_r44 <- function(ctx) {
+  x <- get_column(ctx, "sday", "sday_id")
+  if (is.null(x) || length(x) == 0) {
+    return(NULL)
+  }
+  limit <- ctx$schema$options$max_share_missing_sday
+  missing <- which(is.na(x))
+  share <- length(missing) / length(x)
+  if (share <= limit) {
+    return(NULL)
+  }
+  with_contacts <- ""
+  part <- get_column(ctx, "sday", "part_id")
+  contact_part <- get_column(ctx, "contact_common", "part_id")
+  if (!is.null(part) && !is.null(contact_part)) {
+    n_with <- sum(part[missing] %in% contact_part)
+    with_contacts <- sprintf("; %d of them reported contacts (%d contacts)",
+                             n_with, sum(contact_part %in% part[missing]))
+  }
+  finding(
+    "R44", file = file_label(ctx, "sday"), column = "sday_id",
+    n_fail = length(missing), n_total = length(x), rows = missing,
+    message = sprintf(
+      paste0("%.0f%% of the participants (%d of %d) have no survey date ",
+             "(`sday_id` is NA; threshold %.0f%%)%s. Weekday and holiday ",
+             "analyses are not possible for them."),
+      100 * share, length(missing), length(x), 100 * limit, with_contacts
+    )
+  )
 }
 
 rule_r23 <- function(ctx) {
@@ -67,64 +157,12 @@ rule_r23 <- function(ctx) {
         message = "`cnt_imputed` must be TRUE or FALSE (or NA)."
       )
     }
-  } else if (!is.null(ctx$metadata) && declares_imputation(ctx$metadata)) {
-    out[[1]] <- finding(
-      "R23", file = file_label(ctx, "contact_extra"),
-      message = paste0(
-        "The metadata declares imputed or aggregated contacts but the ",
-        "contact extra file has no `cnt_imputed` flag. Describe the imputation ",
-        "in the dictionary and the Zenodo record (content: manual review)."
-      )
-    )
   }
   bind_findings(out)
 }
 
-rule_r24 <- function(ctx) {
-  schema <- ctx$schema
-  if (identical(ctx$source, "memory") && is.null(ctx$metadata)) {
-    return(NULL)
-  }
-  if (identical(ctx$source, "folder") && is.na(ctx$nametag)) {
-    return(NULL)
-  }
-  if (is.null(ctx$metadata)) {
-    return(finding(
-      "R24",
-      message = paste0(
-        "No metadata file `", ctx$nametag, "_", schema$metadata$basename,
-        "` found. Study metadata (", paste(unlist(schema$metadata$required_fields),
-                                          collapse = ", "),
-        ") must accompany the data."
-      )
-    ))
-  }
-  file <- ctx$metadata_file %||% "metadata"
-  parse_error <- attr(ctx$metadata, "parse_error")
-  if (!is.null(parse_error)) {
-    return(finding("R24", file = file,
-                   message = paste0("The metadata file is not valid YAML: ",
-                                    parse_error)))
-  }
-  required <- unlist(schema$metadata$required_fields)
-  present <- vapply(required, function(field) {
-    value <- ctx$metadata[[field]]
-    !(is.null(value) || length(value) == 0 || all(is.na(value)) ||
-        all(trimws(as.character(value)) == ""))
-  }, logical(1))
-  if (any(!present)) {
-    return(finding(
-      "R24", file = file, n_fail = sum(!present), n_total = length(required),
-      message = paste0("Metadata field(s) missing or empty: ",
-                       collapse_names(required[!present]),
-                       ". Content must also be reviewed manually.")
-    ))
-  }
-  NULL
-}
-
 rule_r25 <- function(ctx) {
-  items <- Filter(function(i) startsWith(i$id, "R25") || startsWith(i$id, "R24"),
+  items <- Filter(function(i) startsWith(i$id, "R25"),
                   ctx$schema$manual_items)
   # items with `when_column: <file id>.<column>` apply only when that column
   # is present
@@ -189,10 +227,7 @@ rule_r27 <- function(ctx) {
   privacy <- ctx$schema$privacy
   strict <- unlist(privacy$geography_tokens_strict)
   declared <- unlist(privacy$geography_tokens_declared)
-  level <- ctx$metadata$geography_level %||% NA_character_
-  declared_ok <- !is.na(level) &&
-    tolower(level[1]) %in% unlist(privacy$geography_declared_levels)
-  tokens <- c(strict, if (declared_ok) character() else declared)
+  tokens <- c(strict, declared)
   geography_name <- function(column) {
     any(name_tokens(column) %in% tokens)
   }
@@ -239,10 +274,9 @@ rule_r27 <- function(ctx) {
         out[[length(out) + 1]] <- finding(
           "R27", file = file_label(ctx, id), column = column,
           message = paste0(
-            "Column name indicates geography (ZIP, address, coordinates",
-            if (!declared_ok) ", municipality or NIS code",
-            "). Public files may only carry geography at the declared level; ",
-            "finer information belongs in a separate restricted file."
+            "Column name indicates geography (ZIP, address, coordinates, ",
+            "municipality or NIS code). Public files may only carry region and ",
+            "province; finer information belongs in a separate restricted file."
           )
         )
       }

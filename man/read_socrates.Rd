@@ -20,7 +20,7 @@ differently.}
 \value{
 An object of class \code{socrates_data}: a list with the parsed
 \code{tables} (named by schema file id), \code{file_names}, per-file format
-information (\code{file_info}), the dictionary and metadata when present.
+information (\code{file_info}) and the dictionary when present.
 }
 \description{
 Reads all files of a dataset folder as text (every column is a character

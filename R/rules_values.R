@@ -29,7 +29,8 @@ rule_r07 <- function(ctx) {
     tab <- ctx$tables[[id]]
     for (column in names(tab)) {
       x <- tab[[column]]
-      bad <- which(x %in% aliases)
+      # case-insensitive and ignoring surrounding spaces (`Null`, `UNKNOWN`)
+      bad <- which(!is.na(x) & tolower(trimws(x)) %in% tolower(aliases))
       if (length(bad) > 0) {
         out[[length(out) + 1]] <- finding(
           "R07", file = file_label(ctx, id), column = column,
@@ -153,6 +154,7 @@ rule_r09 <- function(ctx) {
     if (!is.null(spec$enum_ref)) {
       allowed <- unlist(schema$code_lists[[spec$enum_ref]])
     }
+    allowed <- c(allowed, unlist(spec$enum_extra))
     if (length(allowed) > 0) {
       bad <- which(!is.na(x) & !x %in% allowed)
       if (length(bad) > 0) {
@@ -235,6 +237,19 @@ rule_r10 <- function(ctx) {
         )
       }
     }
+    # the upper bound is exclusive, so min == max is an empty interval
+    empty <- which(!is.na(min) & !is.na(max) & min == max)
+    if (length(empty) > 0) {
+      out[[length(out) + 1]] <- finding(
+        "R10", variant = "empty_interval", file = file, column = def$min,
+        n_fail = length(empty), n_total = nrow(tab), rows = empty,
+        message = paste0(
+          "`", def$min, "` equals `", def$max, "`: the upper bound is ",
+          "exclusive, so the interval is empty. Use the exact-age column for a ",
+          "single age, or give the next category limit as upper bound."
+        )
+      )
+    }
     reversed <- which(!is.na(min) & !is.na(max) & min > max)
     if (length(reversed) > 0) {
       out[[length(out) + 1]] <- finding(
@@ -288,14 +303,14 @@ rule_r12 <- function(ctx) {
   file <- file_label(ctx, id)
   out <- list()
   x <- tab$sday_id
-  parsed <- as.Date(x, format = "%Y-%m-%d")
-  valid <- !is.na(x) & !is.na(parsed) & format(parsed, "%Y-%m-%d") == x
+  parsed <- as.Date(x, format = "%Y%m%d")
+  valid <- !is.na(x) & !is.na(parsed) & format(parsed, "%Y%m%d") == x
   bad <- which(!is.na(x) & !valid)
   if (length(bad) > 0) {
     out[[1]] <- finding(
       "R12", file = file, column = "sday_id", n_fail = length(bad),
       n_total = length(x), rows = bad,
-      message = paste0("Not a valid calendar date in YYYY-MM-DD format: ",
+      message = paste0("Not a valid calendar date in YYYYMMDD format (eight digits, no separators): ",
                        show_values(x[bad]), ".")
     )
   }

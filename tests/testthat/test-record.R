@@ -44,12 +44,13 @@ test_that("R35: merge simulation reports unintended merges", {
   expect_hit(report, "R35")
 })
 
-test_that("R35: a CSV dictionary is noted, not an error", {
+test_that("R35: a CSV dictionary is noted; R01 makes it an error", {
   skip_if_not_installed("socialmixr", "0.7.0")
-  dir <- survey_dir()
+  dir <- survey_dir(xlsx_dictionary = FALSE)
   report <- check_contact_data(dir, smoke_test = TRUE, quiet = TRUE)
   expect_hit(report, "R35", "note")
-  expect_equal(report$status, "PASS")
+  expect_msg(report, "R01", "must be a spreadsheet")
+  expect_equal(report$status, "FAIL")
 })
 
 test_that("R38: identifier types agree across files", {
@@ -124,12 +125,6 @@ test_that("the severity of the legacy boolean warning is a schema setting", {
   idx <- which(purrr::map_chr(schema$rules, "id") == "R08")
   schema$rules[[idx]]$severities$legacy_boolean <- "error"
   expect_hit(check_survey(tables, schema = schema), "R08", "error")
-})
-
-test_that("metadata is a YAML file, never JSON", {
-  dir <- survey_dir()
-  expect_true(file.exists(file.path(dir, "DOE_2012_BELGIUM_metadata.yaml")))
-  expect_length(list.files(dir, pattern = "\\.json$"), 0)
 })
 
 # Contact ID: cnt_id canonical, cont_id accepted legacy alias (R40) ------------

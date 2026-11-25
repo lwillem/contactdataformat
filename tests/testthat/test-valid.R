@@ -28,25 +28,15 @@ test_that("optional files may be absent", {
 test_that("an xlsx dictionary with one sheet per file is read", {
   skip_if_not_installed("openxlsx")
   skip_if_not_installed("readxl")
-  tables <- valid_survey()
-  dir <- survey_dir(tables)
-  file.remove(file.path(dir, "DOE_2012_BELGIUM_dictionary.csv"))
-  wb <- openxlsx::createWorkbook()
-  dict <- tables$dictionary
-  for (id in unique(dict$file)) {
-    sheet <- dict[dict$file == id, c("variable", "description", "type", "values")]
-    names(sheet) <- c("Variable", "Description", "Data type", "Allowed values")
-    openxlsx::addWorksheet(wb, id)
-    openxlsx::writeData(wb, id, sheet)
-  }
-  openxlsx::saveWorkbook(wb, file.path(dir, "DOE_2012_BELGIUM_dictionary.xlsx"))
+  dir <- survey_dir(valid_survey())
+  expect_true(file.exists(file.path(dir, "DOE_2012_BELGIUM_dictionary.xlsx")))
   expect_clean(check_contact_data(dir, quiet = TRUE))
 })
 
 test_that("an .xls dictionary is found and read like .xlsx", {
   skip_if_not_installed("readxl")
   dir <- survey_dir()
-  file.remove(file.path(dir, "DOE_2012_BELGIUM_dictionary.csv"))
+  file.remove(file.path(dir, "DOE_2012_BELGIUM_dictionary.xlsx"))
   # a real .xls file that ships with readxl (its content is not a dictionary)
   file.copy(readxl::readxl_example("datasets.xls"),
             file.path(dir, "DOE_2012_BELGIUM_dictionary.xls"))
@@ -60,7 +50,7 @@ test_that("an .xls dictionary is found and read like .xlsx", {
 test_that("an unreadable dictionary spreadsheet gives a note, not a crash", {
   skip_if_not_installed("readxl")
   dir <- survey_dir()
-  file.remove(file.path(dir, "DOE_2012_BELGIUM_dictionary.csv"))
+  file.remove(file.path(dir, "DOE_2012_BELGIUM_dictionary.xlsx"))
   writeLines("not a spreadsheet", file.path(dir, "DOE_2012_BELGIUM_dictionary.xls"))
   report <- check_contact_data(dir, quiet = TRUE)
   expect_hit(report, "R15", "note")

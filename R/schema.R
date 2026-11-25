@@ -85,24 +85,37 @@ list_rules <- function(schema = "latest") {
   )
 }
 
-#' Open decisions of the guideline
+#' Decisions of the guideline
 #'
-#' Lists the choices that are still open in the guideline and the schema key
-#' that encodes the current choice, so that they are easy to change.
+#' Lists the choices of the guideline, whether they are decided or still open,
+#' and the schema key that encodes the current choice, so that they are easy to
+#' change.
 #'
 #' @inheritParams read_schema
-#' @return A data frame with `id`, `topic` and `where`.
+#' @param status Which decisions to list: `"all"` (default), `"open"` or
+#'   `"decided"`.
+#' @return A data frame with `id`, `status`, `topic`, `decision` and `where`.
 #' @export
 #' @examples
 #' open_decisions()
-open_decisions <- function(schema = "latest") {
+#' open_decisions(status = "open")
+open_decisions <- function(schema = "latest",
+                           status = c("all", "open", "decided")) {
+  status <- match.arg(status)
   schema <- read_schema(schema)
-  data.frame(
+  out <- data.frame(
     id = purrr::map_chr(schema$decisions, "id"),
+    status = purrr::map_chr(schema$decisions,
+                            function(d) d$status %||% "open"),
     topic = purrr::map_chr(schema$decisions, "topic"),
+    decision = purrr::map_chr(schema$decisions,
+                              function(d) d$decision %||% NA_character_),
     where = purrr::map_chr(schema$decisions, "where"),
     stringsAsFactors = FALSE
   )
+  if (status != "all") out <- out[out$status == status, , drop = FALSE]
+  rownames(out) <- NULL
+  out
 }
 
 # Schema accessors ------------------------------------------------------------

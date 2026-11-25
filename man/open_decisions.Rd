@@ -2,23 +2,28 @@
 % Please edit documentation in R/schema.R
 \name{open_decisions}
 \alias{open_decisions}
-\title{Open decisions of the guideline}
+\title{Decisions of the guideline}
 \usage{
-open_decisions(schema = "latest")
+open_decisions(schema = "latest", status = c("all", "open", "decided"))
 }
 \arguments{
 \item{schema}{Either a bundled guideline version (\code{"latest"}, \code{"1.0"}) or
 the path to a schema YAML file. A path lets you try a modified schema,
 for example with a different severity or an open decision resolved
 differently.}
+
+\item{status}{Which decisions to list: \code{"all"} (default), \code{"open"} or
+\code{"decided"}.}
 }
 \value{
-A data frame with \code{id}, \code{topic} and \code{where}.
+A data frame with \code{id}, \code{status}, \code{topic}, \code{decision} and \code{where}.
 }
 \description{
-Lists the choices that are still open in the guideline and the schema key
-that encodes the current choice, so that they are easy to change.
+Lists the choices of the guideline, whether they are decided or still open,
+and the schema key that encodes the current choice, so that they are easy to
+change.
 }
 \examples{
 open_decisions()
+open_decisions(status = "open")
 }

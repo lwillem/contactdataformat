@@ -33,40 +33,10 @@ test_that("R21: contact count plausibility", {
 test_that("R23: imputation is flagged", {
   tables <- valid_survey()
 
-  declared <- tables
-  declared$contact_extra <- NULL
-  declared$metadata$imputation <- "work contacts above 20 were imputed"
-  report <- check_survey(declared)
-  expect_hit(report, "R23", "warning")
-
-  none <- declared
-  none$metadata$imputation <- "none"
-  expect_false("R23" %in% hits(check_survey(none), "warning"))
-
   bad_flag <- tables
   bad_flag$contact_extra$cnt_imputed <- ifelse(bad_flag$contact_extra$cnt_imputed,
                                                "Y", "N")
   expect_hit(check_survey(bad_flag), "R23", "warning")
-})
-
-test_that("R24: metadata", {
-  tables <- valid_survey()
-  dir <- survey_dir(tables)
-  file.remove(file.path(dir, "DOE_2012_BELGIUM_metadata.yaml"))
-  report <- check_contact_data(dir, quiet = TRUE)
-  expect_hit(report, "R24", "warning")
-  expect_true(report$passed)
-
-  incomplete <- tables
-  incomplete$metadata$ethics <- NULL
-  incomplete$metadata$licence <- ""
-  report <- check_survey(incomplete)
-  expect_hit(report, "R24", "warning")
-  expect_msg(report, "R24", "ethics")
-
-  dir <- survey_dir(tables)
-  writeLines("title: [unclosed", file.path(dir, "DOE_2012_BELGIUM_metadata.yaml"))
-  expect_msg(check_contact_data(dir, quiet = TRUE), "R24", "not valid YAML")
 })
 
 test_that("R03 and R25 list manual items without affecting the status", {
@@ -101,16 +71,12 @@ test_that("R27: ZIP, address and coordinate columns are flagged", {
   expect_false(report$passed)
 })
 
-test_that("R27: municipality is allowed only when the level is declared", {
+test_that("R27: municipality, city and NIS columns are always flagged", {
   tables <- valid_survey()
   tables$participant_extra$municipality <- "Faketown"
   tables <- redocument(tables)
   expect_hit(check_survey(tables), "R27")
 
-  tables$metadata$geography_level <- "municipality"
-  expect_clean(check_survey(tables))
-
-  # a declared level never allows ZIP codes
   tables$participant_extra$zip <- "1000"
   expect_hit(check_survey(redocument(tables)), "R27")
 })
@@ -185,4 +151,45 @@ test_that("socialmixr merges a stray geography file (why R27 exists)", {
   files <- list.files(dir, pattern = "\\.csv$", full.names = TRUE)
   survey <- suppressMessages(suppressWarnings(socialmixr::load_survey(files)))
   expect_true("zip_code" %in% names(survey$participants))
+})
+
+test_that("R42: implausible household size", {
+  tables <- valid_survey()
+  tables$hh$hh_size[1] <- 40L
+  report <- check_survey(tables)
+  expect_hit(report, "R42", "warning")
+  expect_msg(report, "R42", "above 20")
+  expect_false("R42" %in% hits(check_survey(valid_survey()), "warning"))
+})
+
+test_that("R43: columns that are entirely NA", {
+  tables <- valid_survey()
+  tables$contact$duration_exact <- NA
+  report <- check_survey(tables)
+  expect_hit(report, "R43", "note")
+  expect_msg(report, "R43", "duration_exact")
+  expect_true(report$passed)
+
+  no_location <- valid_survey()
+  for (col in c("cnt_home", "cnt_work", "cnt_school", "cnt_transport",
+                "cnt_leisure", "cnt_otherplace")) {
+    no_location$contact[[col]] <- NA
+  }
+  report <- check_survey(no_location)
+  expect_hit(report, "R43", "warning")
+  expect_msg(report, "R43", "location columns are entirely")
+  expect_false("R13" %in% hits(report, "error"))
+})
+
+test_that("R44: participants without a survey date", {
+  tables <- valid_survey()
+  expect_false("R44" %in% hits(check_survey(tables), "warning"))
+  rows <- 1:6
+  for (col in c("sday_id", "day", "month", "year", "dayofweek")) {
+    tables$sday[[col]][rows] <- NA
+  }
+  report <- check_survey(tables)
+  expect_hit(report, "R44", "warning")
+  expect_msg(report, "R44", "6 of 30")
+  expect_msg(report, "R44", "reported contacts")
 })

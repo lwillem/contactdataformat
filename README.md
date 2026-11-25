@@ -35,9 +35,10 @@ check_contact_data(path, smoke_test = TRUE)   # also load with socialmixr
 ```
 
 `check_tables()` runs the same rules on data frames in memory;
-`use_template()` writes an empty submission skeleton; study metadata is a
-YAML file (`NAMETAG_metadata.yaml`), never JSON, because socialmixr reads the
-first `.json` file of a record as its citation; `example_survey()` and
+`use_template()` writes an empty submission skeleton; a record carries no
+study metadata file (the study information is in the Zenodo record and the
+dictionary) and at most one `.json`, because socialmixr reads the first
+`.json` file of a record as its citation; `example_survey()` and
 `write_survey()` create a synthetic valid dataset.
 
 ## What is checked
@@ -47,7 +48,7 @@ first `.json` file of a record as its citation; `example_survey()` and
 | A | automatic, schema driven | file names, columns, types, allowed values, age encoding, location logic, survey-day dates, key uniqueness, privacy scan, socialmixr smoke test and merge simulation |
 | X | automatic, cross-table | extra files vs common files, foreign keys, dictionary coverage, household size, record hygiene (no CSV that socialmixr would merge), identifier types |
 | H | heuristic, reported as warnings | contact counts, share of missing ages, identifier-like column names |
-| M | manual checklist | NAMETAG content, documented conventions, metadata content |
+| M | manual checklist | NAMETAG content, documented conventions, Zenodo record content |
 
 Rules R28-R33 (content of a restricted geography file), R36 (Zenodo record
 metadata) and R37 (covered by R05) are in the catalogue but not yet implemented. **Rule R27 flags ZIP codes, addresses and coordinates in a

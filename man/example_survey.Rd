@@ -16,7 +16,7 @@ survey-day table (\code{sday}).}
 }
 \value{
 A named list of data frames: \code{participant}, \code{contact}, \code{hh}, \code{sday},
-\code{participant_extra}, \code{contact_extra}, \code{dictionary} and \code{metadata}.
+\code{participant_extra}, \code{contact_extra} and \code{dictionary}.
 }
 \description{
 Builds a small, fully synthetic dataset that follows the guideline and

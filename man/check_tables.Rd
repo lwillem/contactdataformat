@@ -13,7 +13,6 @@ check_tables(
   contact_extra = NULL,
   hh_extra = NULL,
   dictionary = NULL,
-  metadata = NULL,
   nametag = NULL,
   schema = "latest",
   ...
@@ -28,8 +27,6 @@ which case the rule for the missing required table reports it.}
 
 \item{dictionary}{Optional data frame in long format with columns \code{file},
 \code{variable}, \code{description}, \code{type} and \code{values}.}
-
-\item{metadata}{Optional named list with study metadata.}
 
 \item{nametag}{NAMETAG (file name prefix). Inferred from the file names when
 \code{NULL}.}

@@ -75,8 +75,7 @@ rule_r34 <- function(ctx) {
                           collapse = ", "),
       message = paste0(
         "More than ", hygiene$max_json_files, " JSON file(s) in the record: ",
-        "socialmixr takes the first `.json` as the citation reference. Use ",
-        "YAML for the metadata file."
+        "socialmixr takes the first `.json` as the citation reference."
       )
     )
   }

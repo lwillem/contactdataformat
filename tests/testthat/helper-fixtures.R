@@ -12,17 +12,40 @@ check_survey <- function(tables, ...) {
     hh = tables$hh, sday = tables$sday,
     participant_extra = tables$participant_extra,
     contact_extra = tables$contact_extra, hh_extra = tables$hh_extra,
-    dictionary = tables$dictionary, metadata = tables$metadata,
+    dictionary = tables$dictionary,
     quiet = TRUE, ...
   )
 }
 
 # Write a survey to a fresh temporary folder and return the folder
 survey_dir <- function(tables = valid_survey(), nametag = "DOE_2012_BELGIUM",
-                       env = parent.frame()) {
+                       env = parent.frame(), xlsx_dictionary = TRUE) {
   dir <- withr::local_tempdir(.local_envir = env)
   write_survey(tables, dir, nametag)
+  if (xlsx_dictionary) dictionary_to_xlsx(dir, tables$dictionary, nametag)
   dir
+}
+
+# The published record has an .xlsx dictionary (one sheet per file, as in the
+# Zenodo template); write_survey() writes a .csv, so convert it here.
+dictionary_to_xlsx <- function(dir, dictionary, nametag) {
+  testthat::skip_if_not_installed("openxlsx")
+  testthat::skip_if_not_installed("readxl")
+  csv <- file.path(dir, paste0(nametag, "_dictionary.csv"))
+  if (is.null(dictionary) || !file.exists(csv)) {
+    return(invisible(NULL))
+  }
+  wb <- openxlsx::createWorkbook()
+  for (id in unique(dictionary$file)) {
+    sheet <- dictionary[dictionary$file == id,
+                        c("variable", "description", "type", "values")]
+    names(sheet) <- c("Variable", "Description", "Data type", "Allowed values")
+    openxlsx::addWorksheet(wb, id)
+    openxlsx::writeData(wb, id, sheet)
+  }
+  openxlsx::saveWorkbook(wb, file.path(dir, paste0(nametag, "_dictionary.xlsx")))
+  file.remove(csv)
+  invisible(NULL)
 }
 
 # Rule ids with a given severity in a report

@@ -9,7 +9,7 @@
 #' @param with_holiday If `TRUE`, add the optional `holiday` column to the
 #'   survey-day table (`sday`).
 #' @return A named list of data frames: `participant`, `contact`, `hh`, `sday`,
-#'   `participant_extra`, `contact_extra`, `dictionary` and `metadata`.
+#'   `participant_extra`, `contact_extra` and `dictionary`.
 #' @export
 #' @examples
 #' tables <- example_survey(n_participants = 10)
@@ -75,7 +75,7 @@ build_example_survey <- function(n_participants, with_holiday = FALSE) {
   dates <- as.Date("2011-01-10") + (seq_len(n_participants) %% 14)
   sday <- data.frame(
     part_id = part_id,
-    sday_id = format(dates, "%Y-%m-%d"),
+    sday_id = format(dates, "%Y%m%d"),
     day = as.integer(format(dates, "%d")),
     month = as.integer(format(dates, "%m")),
     year = as.integer(format(dates, "%Y")),
@@ -107,14 +107,6 @@ build_example_survey <- function(n_participants, with_holiday = FALSE) {
       list(participant_common = participant, contact_common = contact,
            hh_common = hh, sday = sday, participant_extra = participant_extra,
            contact_extra = contact_extra)
-    ),
-    metadata = list(
-      title = "Synthetic example survey", design = "diary, one day",
-      mode = "paper", sample_size = n_participants, age_range = "0-85",
-      region = "synthetic", diary_days = 1,
-      contact_definition = "conversation of at least three words",
-      ethics = "not applicable (synthetic)", licence = "CC0",
-      imputation = "none"
     )
   )
 }
@@ -137,7 +129,7 @@ example_dictionary <- function(tables) {
       }, character(1)),
       type = vapply(seq_along(columns), function(i) {
         type <- specs[[i]]$type
-        if (is.null(type)) "string" else if (type == "date_iso") "string" else type
+        if (is.null(type)) "string" else if (type == "date_yyyymmdd") "string" else type
       }, character(1)),
       values = ifelse(columns %in% names(codes), codes[columns], NA_character_),
       stringsAsFactors = FALSE
@@ -153,7 +145,7 @@ example_dictionary <- function(tables) {
 #' @param tables A list as returned by [example_survey()] (or built the same
 #'   way): `participant`, `contact`, `hh`, `sday`, optionally
 #'   `participant_extra`, `contact_extra`, `hh_extra`, `dictionary`
-#'   (written as a long-format CSV) and `metadata` (written as YAML).
+#'   (written as a long-format CSV).
 #' @param path Existing folder to write into.
 #' @param nametag NAMETAG used as file name prefix.
 #' @return The written file paths, invisibly.
@@ -180,11 +172,6 @@ write_survey <- function(tables, path, nametag) {
   if (!is.null(tables$dictionary)) {
     file <- file.path(path, paste0(nametag, "_dictionary.csv"))
     write_csv_utf8(tables$dictionary, file)
-    written <- c(written, file)
-  }
-  if (!is.null(tables$metadata)) {
-    file <- file.path(path, paste0(nametag, "_", schema$metadata$basename))
-    yaml::write_yaml(tables$metadata, file)
     written <- c(written, file)
   }
   invisible(written)

@@ -2,7 +2,7 @@
 #
 # This file is the single source of truth for the checker: file names, column
 # names, order, types, allowed values, keys, severities and thresholds all live
-# here. Choices that are still open in the guideline are listed under
+# here. The choices of the guideline, decided or still open, are listed under
 # `decisions` and can be changed by editing the value they point to; pass the
 # edited file to the checker with `check_contact_data(path, schema = "<file>")`.
 #
@@ -11,8 +11,8 @@
 # `cnt_id` (legacy alias `cont_id`), `cnt_otherplace`, `part_age_exact`
 # (alias `part_age`), survey-day file keyed by `part_id`, no
 # `sday_id` in the contact file, TRUE/FALSE booleans (0/1 is a legacy form, warning), UTF-8,
-# optional columns may be absent, column order not enforced, metadata as YAML
-# (socialmixr reads the first .json file of a record as its citation).
+# optional columns may be absent, column order not enforced, no study metadata
+# file (socialmixr reads the first .json file of a record as its citation).
 
 schema_format: 1
 guideline_version: "1.0"
@@ -26,12 +26,17 @@ title: "SOCRATES guidelines for data formatting, version 1.0 (draft)"
 na_token: "NA"
 
 nametag:
-  # NAME_YEAR_COUNTRY with an optional suffix (P4). Edit to change Q1.
-  pattern: '^[A-Z0-9]+_[0-9]{4}_[A-Z0-9]+(_[A-Z0-9]+)*$'
+  # Recommended form: NAME_YEAR with an optional suffix (P4; the suffix can be the country, a design or a wave). A name
+  # that does not follow it is a note (R02, variant not_recommended), not an
+  # error. Only a name that cannot serve as a file name prefix is an error
+  # (R02): it must match `valid_pattern`. The prefix itself must be the same on
+  # every file of the dataset (R01).
+  pattern: '^[A-Z0-9]+_[0-9]{4}(_[A-Z0-9]+)*$'
+  valid_pattern: '^[A-Za-z0-9]+([_-][A-Za-z0-9]+)*$'
   example: "DOE_2012_BELGIUM"
-  # Records published before the rule existed may keep their original prefix
-  # (documented in the Zenodo description), e.g. 2010_Willem_BELGIUM: reported
-  # as a warning instead of an error (R02, variant legacy_prefix).
+  # Records published before the recommendation existed may keep their original
+  # prefix, e.g. 2010_Willem_BELGIUM: reported as a note (R02, variant
+  # legacy_prefix).
   legacy_pattern: '^[0-9]{4}_[A-Za-z0-9]+_[A-Za-z0-9]+(_[A-Za-z0-9]+)*$'
 
 options:
@@ -39,7 +44,8 @@ options:
   # `ignore`: only presence is checked (socialmixr joins by name). (Q14)
   column_order: ignore
   missing_token_aliases: ["na", "Na", "N/A", "n/a", "NaN", "nan", "null",
-                          "NULL", "None", "none", "-", "."]
+                          "NULL", "None", "none", "-", ".", "unknown", "Unknown",
+                          "missing", "n.a.", "N.A."]
   placeholder_values: ["-99", "-999", "-9999", "999", "9999"]
   # An age interval with only one bound (e.g. 60+ => est_min = 60, est_max = NA).
   # Guideline (age encoding rules): an open-ended category has est_max = NA and
@@ -49,10 +55,20 @@ options:
   max_share_zero_contact_participants: 0.3
   max_share_missing_participant_age: 0.05
   max_share_missing_contact_age: 0.5
+  # R42: a household larger than this is flagged as implausible (warning; the
+  # hard range of hh_size is wider).
+  max_plausible_hh_size: 20
+  # R44: share of participants without a survey date (sday_id = NA) above which
+  # a warning is given (weekday and holiday analyses are impossible for them).
+  max_share_missing_sday: 0.05
   # Index-like first column names that indicate exported row names.
   rowname_column_names: ["", "X", "V1", "...1", "Unnamed: 0", "row.names",
                          "rownames", "row_names"]
-  dictionary_extensions: ["xlsx", "xls", "csv"]
+  # The dictionary in the published record is a spreadsheet (Q16). A CSV
+  # dictionary is still read, so that the dictionary checks can run locally,
+  # but it is an error in R01 (variant dictionary_format).
+  dictionary_extensions: ["xlsx", "xls"]
+  dictionary_local_extensions: ["csv"]
 
 types:
   boolean:
@@ -81,9 +97,9 @@ types:
   code:
     pattern: '^[^\s,"]([^,"]*[^\s,"])?$'
     description: "Category code: string or integer"
-  date_iso:
-    pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
-    description: "Calendar date as ISO 8601 YYYY-MM-DD"
+  date_yyyymmdd:
+    pattern: '^[0-9]{8}$'
+    description: "Calendar date as YYYYMMDD, eight digits without separators (as in POLYMOD)"
   string:
     description: "Free text"
 
@@ -303,7 +319,10 @@ files:
         type: string
         nullable: false
         enum_ref: iso3166_alpha2
-        description: "ISO 3166-1 alpha-2 country code"
+        # Namibia: alpha-2 `NA` is read as missing by much software, so the
+        # alpha-3 code is allowed for it (a quoted "NA" is also accepted).
+        enum_extra: [NAM]
+        description: "ISO 3166-1 alpha-2 country code (NAM allowed for Namibia)"
       - name: hh_size
         type: integer
         nullable: true
@@ -333,9 +352,9 @@ files:
         unique: true
         description: "Participant identifier; primary key"
       - name: sday_id
-        type: date_iso
+        type: date_yyyymmdd
         nullable: true
-        description: "Date on which the diary or questionnaire was filled in, YYYY-MM-DD; a value, not a key (P3, Q4 decided: fill-in date)"
+        description: "Date on which the diary or questionnaire was filled in, YYYYMMDD (e.g. 20110110); a value, not a key (P3, Q4 decided: fill-in date)"
       - name: day
         type: integer
         nullable: true
@@ -361,6 +380,11 @@ files:
         nullable: true
         required: false
         description: "Optional, recommended. TRUE if sday_id is a public holiday and/or a school holiday that applies to the participant's area, FALSE otherwise; NA if the date is unknown"
+      - name: wave
+        type: string
+        nullable: true
+        required: false
+        description: "Optional, recommended for panel and repeated studies. Wave or round of the record (e.g. 1, 2, 3 or W1); one part_id is one person in one wave on one diary day. The dictionary says what a wave is"
     foreign_keys:
       - column: part_id
         references: participant_common.part_id
@@ -380,14 +404,6 @@ dictionary:
   basename: "dictionary"
   required: true
   fields: [variable, description, type, values]
-
-metadata:
-  basename: "metadata.yaml"
-  # Machine-readable study metadata (P16, P31: not JSON, because socialmixr
-  # takes the first .json file of a record as its citation reference).
-  required_fields: [title, design, mode, sample_size, age_range, region,
-                    diary_days, contact_definition, ethics, licence,
-                    imputation]
 
 recommended_extra:
   contact_extra:
@@ -423,11 +439,10 @@ privacy:
   geography_tokens_strict: [zip, zipcode, postal, postalcode, postcode, plz,
     address, street, lat, latitude, lon, lng, longitude, xcoord, ycoord,
     coord, coords, coordinates]
-  # Allowed only when the metadata declares geography_level as one of the
-  # levels below.
+  # Municipality-level tokens; also flagged (public files carry region and
+  # province only, see Q20).
   geography_tokens_declared: [municipality, city, town, nis, gemeente, commune,
     postcode_name]
-  geography_declared_levels: [municipality, city, nis]
   identifier_tokens: [name, firstname, lastname, surname, forename, email,
     phone, telephone, birthdate, birthday, dob, ssn, passport, iban]
   # Whole-file names (tokens) that mark a restricted geography file.
@@ -441,7 +456,7 @@ privacy:
 manual_items:
   - id: R03
     title: "NAMETAG content"
-    prompt: "NAMETAG is the surname of the first author of the earliest publication, the publication year and the English country name, and is unique per survey implementation."
+    prompt: "NAMETAG is the surname of the first author of the earliest publication, the publication year, with a suffix (country, design or wave) where needed, and is unique per survey implementation."
   - id: R25a
     title: "Kindergarten and daycare"
     prompt: "Locations beyond the six common ones (kindergarten, daycare, family visit) are mapped as documented (Q2) and kept in the contact extra file."
@@ -458,58 +473,132 @@ manual_items:
     title: "Holiday definition"
     when_column: sday.holiday
     prompt: "The definition of `holiday` (public and/or school holiday, region or community, calendar source) is documented in the dictionary."
-  - id: R24m
-    title: "Metadata content"
+  - id: R25f
+    title: "Wave definition"
+    when_column: sday.wave
+    prompt: "The dictionary states what a wave is (fixed round of the same panel, repeated multi-day measurement, or recruitment batch) and how `wave` relates to `panel_id`."
+  - id: R25g
+    title: "Zenodo record content"
     prompt: "Zenodo title, description, dates and geographic scope are consistent with the data files."
 
 decisions:
-  # Open choices of the guideline. `where` shows which key to edit.
+  # Choices of the guideline and where the schema encodes them (`where` shows
+  # which key to edit). `status` is `decided` (settled on 2026-11-25, see the
+  # `decision`) or `open`. Ids follow REVIEW_guidelines_vs_flanders2010.md;
+  # `DATE` has no review id.
   - id: Q1
-    topic: "NAMETAG for surveys sharing country and year (suffix rule)"
+    status: open
+    topic: "NAMETAG of surveys that share country and year (suffix rule; the two PLATO surveys)"
+    decision: "Not decided; parked together with the Flanders data."
     where: "nametag.pattern"
+  - id: Q27
+    status: decided
+    topic: "NAMETAG: NAME_YEAR[_SUFFIX]; which year; legacy prefix"
+    decision: "NAME and YEAR are those of the earliest publication, or of the lead investigator and the start of data collection if there is none yet; fixed at creation. The form is a recommendation (revised 2026-11-25): a name that deviates, including the year-first legacy prefix, is a note (R02 not_recommended, legacy_prefix); only a name that is not ASCII letters, digits, underscore or hyphen is an error. The same prefix on every file stays a hard rule (R01)."
+    where: "nametag.pattern; nametag.valid_pattern; nametag.legacy_pattern; rules.R02.severities"
   - id: Q2
+    status: decided
     topic: "Kindergarten and daycare map to cnt_school (manual item R25a)"
+    decision: "Kindergarten sets cnt_school."
     where: "manual_items[R25a]; rules.R13"
   - id: Q3
+    status: decided
     topic: "Is hh_id required (individual surveys)?"
+    decision: "hh_id is never NA; without household information use hh_id = part_id. The table layout is unchanged (country stays in the household file)."
     where: "files.participant_common.columns[hh_id].nullable"
   - id: Q4
-    topic: "Assigned diary day vs date of entry; weekday check severity"
+    status: decided
+    topic: "What is sday_id; weekday check severity"
+    decision: "sday_id is the date on which the diary or questionnaire was filled in; dayofweek is derived from it. No assigned-day column. The weekday check stays a warning."
     where: "rules.R12.severities.weekday"
+  - id: DATE
+    status: decided
+    topic: "Date format"
+    decision: "sday_id is written as YYYYMMDD (eight digits, no separators), in line with POLYMOD; NA if missing. ISO YYYY-MM-DD and dotted dates are errors. Changed on 2026-11-25 from ISO YYYY-MM-DD: 16 of 26 non-CoMix Zenodo records already use YYYYMMDD."
+    where: "types.date_yyyymmdd; rules.R12"
   - id: Q6
+    status: decided
     topic: "Boolean coding (strict TRUE/FALSE) and missing tokens"
+    decision: "TRUE/FALSE only; NA is the only missing token."
     where: "types.boolean.values; options.missing_token_aliases"
   - id: Q41
+    status: decided
     topic: "Contact ID: cnt_id canonical, cont_id legacy alias (R40)"
+    decision: "cnt_id is canonical; cont_id is read as a legacy alias."
     where: "files.contact_common.columns[cnt_id].aliases; files.contact_common.key"
   - id: Q31
+    status: decided
     topic: "Optional columns (age interval, cnt_age_multi, duration_exact)"
+    decision: "All common columns are mandatory (a uniformity rule for the checker, not a socialmixr requirement); only holiday is optional (recommended)."
     where: "files.<id>.columns[].required"
   - id: Q32
+    status: decided
     topic: "Boolean coding: TRUE/FALSE required, 0/1 legacy warning (Q32)"
+    decision: "As Q6; 0/1 is a legacy form and a warning."
     where: "types.boolean.values; types.boolean.legacy_values; rules.R08.severities.legacy_boolean"
   - id: Q34
-    topic: "Open age bands need an explicit upper bound"
-    where: "options.allow_open_age_interval"
+    status: decided
+    topic: "Age rules: whole numbers, interval bounds, open age bands"
+    decision: "Ages and bounds are whole numbers of completed years (0 for under one year). Lower bound inclusive, upper bound exclusive, stored as the questionnaire category limits; open-ended bands have NA as upper bound (accepted)."
+    where: "options.allow_open_age_interval; files.participant_common.columns[part_age_*]"
+  - id: P11
+    status: decided
+    topic: "Participant age column names"
+    decision: "part_age_exact, part_age_est_min, part_age_est_max (legacy alias part_age)."
+    where: "files.participant_common.columns[part_age_exact].aliases"
+  - id: P42
+    status: decided
+    topic: "holiday column in the survey-day file"
+    decision: "Optional but recommended: TRUE if the day is a public and/or school holiday that applies to the participant's area; the dictionary states calendars and dates."
+    where: "files.sday.columns[holiday].required"
+  - id: T1
+    status: decided
+    topic: "wave column (test datasets, 25 Nov 2026)"
+    decision: "Optional, recommended column wave in the survey-day file (sday), not in the participant extra file; one part_id is one person in one wave on one diary day; the dictionary defines the wave. Checker built; guideline text (main.tex) not yet updated."
+    where: "files.sday.columns[wave].required; manual item R25f"
   - id: Q14
+    status: decided
     topic: "Severity policy and column order"
+    decision: "Errors stop socialmixr or break keys; warnings are recommended conventions and plausibility; notes are style. Column order is not enforced."
     where: "rules.<id>.severity; options.column_order"
   - id: Q16
+    status: decided
     topic: "Dictionary format (xlsx and/or long CSV)"
+    decision: ".xlsx/.xls following the Zenodo template in the public record; .csv only locally. Enforced (25 Nov 2026): a .csv dictionary is an R01 error (it is still read so the dictionary checks run). Other formats that are both human and machine readable can be considered in a future version."
     where: "options.dictionary_extensions"
+  - id: Q20
+    status: decided
+    topic: "Public geography file NAMETAG_participants_city.csv"
+    decision: "Optional; part_region and part_province only. Municipality, NIS, ZIP and coordinates only in a restricted twin outside the record. Not yet encoded in the schema or the checker."
+    where: "(not yet encoded)"
+  - id: Q39
+    status: open
+    topic: "Sharded file names NAMETAG_participant_common_<part>.csv"
+    decision: "Not decided."
+    where: "(not yet encoded)"
+  - id: Q51
+    status: decided
+    topic: "Study metadata file NAMETAG_metadata.yaml"
+    decision: "Dropped on 2026-11-25: no metadata file is required and rule R24 is removed. Study information stays in the Zenodo record and the dictionary; R25g checks that the Zenodo title, description, dates and geographic scope match the data files. R27 no longer has a declared geography level: municipality, city and NIS columns are always flagged."
+    where: "(rule R24, `metadata` block and `geography_declared_levels` removed)"
+  - id: Q40
+    status: open
+    topic: "Zenodo metadata strictness (version string, References)"
+    decision: "Not decided."
+    where: "(not yet encoded)"
 
 rules:
   - id: R01
     class: A
     severity: error
     severities: {unrecognised: warning}
-    title: "Required files present and named NAMETAG_<name>"
+    title: "Required files present and named NAMETAG_<name>; dictionary is .xlsx/.xls; no CSV with another prefix"
     ref: "main.tex sec. 2.1, 3, 4"
   - id: R02
     class: A
     severity: error
-    severities: {legacy_prefix: warning}
-    title: "NAMETAG syntax NAME_YEAR_COUNTRY[_SUFFIX], ASCII upper case"
+    severities: {legacy_prefix: note, not_recommended: note}
+    title: "NAMETAG: recommended form NAME_YEAR[_SUFFIX]; error only if unusable as a file name prefix"
     ref: "main.tex sec. 2.1"
   - id: R03
     class: M
@@ -553,7 +642,8 @@ rules:
   - id: R10
     class: A
     severity: error
-    title: "Age rules: exact xor interval, min <= max, 0-110"
+    severities: {empty_interval: warning}
+    title: "Age rules: exact xor interval, min < max (upper bound exclusive), 0-110"
     ref: "main.tex sec. 4.1, 4.2"
   - id: R11
     class: H
@@ -564,7 +654,7 @@ rules:
     class: A
     severity: error
     severities: {weekday: warning}
-    title: "Survey day: valid YYYY-MM-DD, day/month/year match, weekday"
+    title: "Survey day: valid YYYYMMDD, day/month/year match, weekday"
     ref: "main.tex sec. 4.4"
   - id: R13
     class: A
@@ -607,8 +697,36 @@ rules:
   - id: R20
     class: X
     severity: warning
+    severities: {summary: note}
     title: "Panel ids: one individual, distinct part_id per wave"
     ref: "main.tex sec. 5"
+  - id: R41
+    class: X
+    severity: error
+    title: "A part_id belongs to one panel_id only, in every file that carries it"
+    ref: "main.tex sec. 5"
+  - id: R42
+    class: H
+    severity: warning
+    title: "Household size is plausible (not above max_plausible_hh_size)"
+    ref: "other_code/validate_socrates.R comparison, 25 Nov 2026"
+  - id: R43
+    class: H
+    severity: note
+    severities: {location: warning}
+    title: "Columns that are entirely NA (a whole location group NA is a warning)"
+    ref: "test datasets, 25 Nov 2026"
+  - id: R44
+    class: H
+    severity: warning
+    title: "Share of participants without a survey date (sday_id = NA)"
+    ref: "test datasets, 25 Nov 2026"
+  - id: R45
+    class: X
+    severity: warning
+    severities: {age: warning}
+    title: "Panel ids: same individual keeps gender and a plausible age over time"
+    ref: "test datasets, 25 Nov 2026"
   - id: R21
     class: H
     severity: warning
@@ -626,11 +744,6 @@ rules:
     severity: warning
     title: "Imputation or aggregation is flagged"
     ref: "REVIEW F3, P12"
-  - id: R24
-    class: A
-    severity: warning
-    title: "Metadata file present and complete"
-    ref: "main.tex sec. 6, P16"
   - id: R25
     class: M
     severity: manual

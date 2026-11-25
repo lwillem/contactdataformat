@@ -10,7 +10,7 @@ write_survey(tables, path, nametag)
 \item{tables}{A list as returned by \code{\link[=example_survey]{example_survey()}} (or built the same
 way): \code{participant}, \code{contact}, \code{hh}, \code{sday}, optionally
 \code{participant_extra}, \code{contact_extra}, \code{hh_extra}, \code{dictionary}
-(written as a long-format CSV) and \code{metadata} (written as YAML).}
+(written as a long-format CSV).}
 
 \item{path}{Existing folder to write into.}
 

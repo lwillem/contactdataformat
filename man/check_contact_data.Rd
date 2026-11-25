@@ -60,6 +60,6 @@ report <- check_contact_data(dir, quiet = TRUE)
 report$status
 
 # waive a rule, with a reason
-check_contact_data(dir, waive = c(R24 = "metadata is on Zenodo"),
+check_contact_data(dir, waive = c(R21 = "group contacts are documented"),
                    quiet = TRUE)$status
 }

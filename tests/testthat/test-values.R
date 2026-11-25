@@ -48,7 +48,7 @@ test_that("R08: column types and mandatory values", {
   expect_setequal(only_rule(report, "R08")$column, c("part_age_exact", "hh_size"))
 
   date <- tables
-  date$sday$sday_id[1] <- "20110110"  # legacy YYYYMMDD is not ISO
+  date$sday$sday_id[1] <- "2011-01-10"  # ISO with separators is not YYYYMMDD
   expect_hit(check_survey(date), "R08")
 
   missing_key <- tables
@@ -74,6 +74,11 @@ test_that("R09: enumerations and ranges", {
   ok <- tables
   ok$hh$country[1] <- "NO"
   expect_clean(check_survey(ok))
+  # Namibia: the alpha-3 code NAM is allowed, other alpha-3 codes are not
+  ok$hh$country[1] <- "NAM"
+  expect_clean(check_survey(ok))
+  ok$hh$country[1] <- "BEL"
+  expect_hit(check_survey(ok), "R09")
 
   range <- tables
   range$sday$dayofweek[1] <- 7L
@@ -140,7 +145,7 @@ test_that("R12: survey day consistency", {
   tables <- valid_survey()
 
   invalid <- tables
-  invalid$sday$sday_id[1] <- "2011-02-31"
+  invalid$sday$sday_id[1] <- "20110231"  # eight digits but not a calendar date
   expect_hit(check_survey(invalid), "R12")
 
   mismatch <- tables
@@ -312,4 +317,46 @@ test_that("value labels on continuation rows are folded into the variable", {
   norm <- normalise_dictionary(dict, NA_character_, read_schema())$data
   expect_equal(norm$variable, c("frequency_multi", "phys_contact"))
   expect_equal(parse_codes(norm$values[1]), c("1", "2", "3"))
+})
+
+# Optional sday$wave ------------------------------------------------------------
+
+test_that("wave is an optional column of the survey-day file", {
+  without <- valid_survey()
+  expect_false("wave" %in% names(without$sday))
+  expect_clean(check_survey(without))
+
+  with <- valid_survey()
+  with$sday$wave <- rep(c("W1", "W2"), length.out = nrow(with$sday))
+  with <- redocument(with)
+  report <- check_survey(with)
+  # accepted in the survey-day file: no "not in the specification" error
+  expect_false(any(grepl("wave", only_rule(report, "R05")$message)))
+  expect_true("R25" %in% hits(report, "manual"))
+  expect_msg(report, "R25", "wave")
+
+  # wave in the participant extra file is just an extra variable
+  extra <- valid_survey()
+  extra$participant_extra$wave <- "W1"
+  expect_clean(check_survey(redocument(extra)))
+})
+
+test_that("R07: missing tokens are matched case-insensitively", {
+  tables <- valid_survey()
+  tables$participant$part_gender[1] <- "UNKNOWN"
+  tables$participant$part_gender[2] <- " Null "
+  report <- check_survey(tables)
+  expect_hit(report, "R07", "error")
+  expect_msg(report, "R07", "UNKNOWN")
+})
+
+test_that("R10: an interval with equal bounds is empty (upper bound exclusive)", {
+  tables <- valid_survey()
+  tables$contact$cnt_age_exact[2] <- NA
+  tables$contact$cnt_age_est_min[2] <- 40L
+  tables$contact$cnt_age_est_max[2] <- 40L
+  report <- check_survey(tables)
+  expect_hit(report, "R10", "warning")
+  expect_false("R10" %in% hits(report, "error"))
+  expect_msg(report, "R10", "empty")
 })

@@ -49,6 +49,16 @@ rule_r01 <- function(ctx) {
       )
     }
   }
+  if (isTRUE(ctx$dictionary_misnamed)) {
+    out[[length(out) + 1]] <- finding(
+      "R01", file = ctx$dictionary_file,
+      message = paste0(
+        "The dictionary file does not follow the naming `", tag, "_",
+        schema$dictionary$basename, ".<ext>`; rename it. Its content was ",
+        "checked anyway (R14, R15)."
+      )
+    )
+  }
   if (isTRUE(schema$dictionary$required) && is.null(ctx$dictionary_file)) {
     wanted <- paste0(tag, "_", schema$dictionary$basename, ".",
                      schema$options$dictionary_extensions, collapse = " or ")
@@ -75,7 +85,35 @@ rule_r01 <- function(ctx) {
                        "`.")
     )
   }
+  dict <- ctx$dictionary_file
+  if (!is.null(dict)) {
+    ext <- tolower(tools::file_ext(dict))
+    if (!ext %in% unlist(schema$options$dictionary_extensions)) {
+      out[[length(out) + 1]] <- finding(
+        "R01", file = dict,
+        message = paste0(
+          "The dictionary is a `.", ext, "` file. The dictionary in the ",
+          "published record must be a spreadsheet (",
+          paste0("`.", unlist(schema$options$dictionary_extensions), "`",
+                 collapse = " or "),
+          "). A `.csv` dictionary is read here so that the other checks can ",
+          "run, but it must not be part of the record."
+        )
+      )
+    }
+  }
   for (file in ctx$unrecognised) {
+    if (!startsWith(file, paste0(tag, "_"))) {
+      out[[length(out) + 1]] <- finding(
+        "R01", file = file,
+        message = paste0(
+          "File name does not start with the NAMETAG `", tag, "` (it seems to ",
+          "belong to another record) and the file is not part of the ",
+          "guideline file set."
+        )
+      )
+      next
+    }
     out[[length(out) + 1]] <- finding(
       "R01", variant = "unrecognised", file = file,
       message = paste0(
@@ -112,30 +150,40 @@ rule_r02 <- function(ctx) {
   if (is.na(tag)) {
     return(NULL)
   }
-  pattern <- ctx$schema$nametag$pattern
-  legacy <- ctx$schema$nametag$legacy_pattern
-  if (!matches(tag, pattern) && !is.null(legacy) && matches(tag, legacy)) {
-    return(finding(
-      "R02", variant = "legacy_prefix",
-      message = paste0(
-        "NAMETAG `", tag, "` follows an older prefix convention (year first). ",
-        "This is accepted for records published before the NAME_YEAR_COUNTRY ",
-        "rule if it is documented in the Zenodo description; new submissions ",
-        "use e.g. `", ctx$schema$nametag$example, "`."
-      )
-    ))
-  }
-  if (!matches(tag, pattern)) {
+  nt <- ctx$schema$nametag
+  if (!is.null(nt$valid_pattern) && !matches(tag, nt$valid_pattern)) {
     return(finding(
       "R02",
       message = paste0(
-        "NAMETAG `", tag, "` does not match NAME_YEAR_COUNTRY[_SUFFIX] in ",
-        "ASCII upper case (pattern `", pattern, "`), e.g. `",
-        ctx$schema$nametag$example, "`."
+        "NAMETAG `", tag, "` cannot be used as a file name prefix: use ASCII ",
+        "letters and digits, separated by underscores or hyphens (pattern `",
+        nt$valid_pattern, "`)."
       )
     ))
   }
-  NULL
+  if (matches(tag, nt$pattern)) {
+    return(NULL)
+  }
+  legacy <- nt$legacy_pattern
+  if (!is.null(legacy) && matches(tag, legacy)) {
+    return(finding(
+      "R02", variant = "legacy_prefix",
+      message = paste0(
+        "NAMETAG `", tag, "` starts with the year. Accepted for records ",
+        "published before the recommendation; new submissions use e.g. `",
+        nt$example, "`."
+      )
+    ))
+  }
+  finding(
+    "R02", variant = "not_recommended",
+    message = paste0(
+      "NAMETAG `", tag, "` does not follow the recommended form ",
+      "NAME_YEAR[_SUFFIX] in upper case (pattern `", nt$pattern,
+      "`), e.g. `", nt$example, "`. The name is accepted as long as every ",
+      "file carries the same prefix."
+    )
+  )
 }
 
 rule_r03 <- function(ctx) {
@@ -237,6 +285,7 @@ rule_r05 <- function(ctx) {
       hints <- vapply(missing, function(col) {
         spec <- schema_column(schema, id, col)
         found <- intersect(unlist(spec$common_mistakes), actual)
+        if (length(found) == 0) found <- similar_name(col, extra)
         if (length(found) == 0) "" else paste0(" (found `", found[1], "`)")
       }, character(1))
       out[[length(out) + 1]] <- finding(
@@ -282,6 +331,20 @@ rule_r05 <- function(ctx) {
     }
   }
   bind_findings(out)
+}
+
+# Names in `candidates` that look like a misspelling of `name`: equal after
+# dropping case, spaces and punctuation (`Part_ID`, `cnt_ age_exact`), or one
+# character apart for names of six or more characters (`cnt_gendr`).
+similar_name <- function(name, candidates) {
+  norm <- function(x) gsub("[^a-z0-9]", "", tolower(x))
+  if (length(candidates) == 0) {
+    return(character())
+  }
+  same <- norm(candidates) == norm(name)
+  close <- nchar(norm(name)) >= 6 &
+    as.vector(utils::adist(norm(name), norm(candidates))) == 1
+  candidates[same | close]
 }
 
 rule_r06 <- function(ctx) {

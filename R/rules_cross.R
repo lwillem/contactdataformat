@@ -1,4 +1,4 @@
-# Cross-table rules: R15-R20 ----------------------------------------------------
+# Cross-table rules: R15-R20, R41, R45 ----------------------------------------------------
 
 dictionary_type_class <- function(x) {
   # first word only: "Integer (years)", "String of 2 chars", "floating point"
@@ -26,7 +26,7 @@ compatible_types <- function(schema_type) {
     boolean = c("boolean", "integer"),  # integer: legacy 0/1 coding (R08 warns)
     id = c("id", "string", "integer", "code"),
     code = c("code", "string", "integer", "id"),
-    date_iso = c("string", "date", "integer", "code"),
+    date_yyyymmdd = c("string", "date", "integer", "code"),
     schema_type
   )
 }
@@ -215,28 +215,184 @@ rule_r19 <- function(ctx) {
   )
 }
 
+# The panel_id column and its part_id: the participant extra file (guideline),
+# or the survey-day file when a submission put it there
+panel_columns <- function(ctx) {
+  for (id in c("participant_extra", "sday")) {
+    panel <- get_column(ctx, id, "panel_id")
+    part <- get_column(ctx, id, "part_id")
+    if (!is.null(panel) && !is.null(part)) {
+      return(list(id = id, panel = panel, part = part))
+    }
+  }
+  NULL
+}
+
 rule_r20 <- function(ctx) {
+  out <- list()
+  pc <- panel_columns(ctx)
+  if (!is.null(pc)) {
+    keep <- !is.na(pc$panel) & !is.na(pc$part)
+    if (any(keep)) {
+      records <- tapply(pc$part[keep], pc$panel[keep],
+                        function(x) length(unique(x)))
+      out[[1]] <- finding(
+        "R20", variant = "summary", file = file_label(ctx, pc$id),
+        column = "panel_id", n_fail = sum(records > 1),
+        n_total = length(records),
+        message = sprintf(
+          paste0("panel_id: %d individual(s), %d with more than one ",
+                 "part_id (records per individual: median %s, maximum %d)."),
+          length(records), sum(records > 1),
+          format(stats::median(records)), max(records)
+        )
+      )
+    }
+  }
   panel <- get_column(ctx, "participant_extra", "panel_id")
   part <- get_column(ctx, "participant_extra", "part_id")
   sday_part <- get_column(ctx, "sday", "part_id")
   sday_id <- get_column(ctx, "sday", "sday_id")
   if (is.null(panel) || is.null(part) || is.null(sday_part) ||
         is.null(sday_id)) {
-    return(NULL)
+    return(bind_findings(out))
   }
   date <- sday_id[match(part, sday_part)]
   key <- paste(panel, date, sep = "|")
   dup <- which(!is.na(panel) & !is.na(date) &
                  (duplicated(key) | duplicated(key, fromLast = TRUE)))
-  if (length(dup) == 0) {
+  if (length(dup) > 0) {
+    out[[length(out) + 1]] <- finding(
+      "R20", file = file_label(ctx, "participant_extra"), column = "panel_id",
+      n_fail = length(dup), n_total = length(panel), rows = dup,
+      message = paste0(
+        "The same `panel_id` has several `part_id` records on the same ",
+        "survey day; each survey occasion of an individual needs its own day."
+      )
+    )
+  }
+  bind_findings(out)
+}
+
+# R45: the records of one panel_id are one person ---------------------------
+
+rule_r45 <- function(ctx) {
+  pc <- panel_columns(ctx)
+  participants <- ctx$tables[["participant_common"]]
+  if (is.null(pc) || is.null(participants)) {
     return(NULL)
   }
-  finding(
-    "R20", file = file_label(ctx, "participant_extra"), column = "panel_id",
-    n_fail = length(dup), n_total = length(panel), rows = dup,
-    message = paste0(
-      "The same `panel_id` has several `part_id` records on the same ",
-      "survey day; each survey occasion of an individual needs its own day."
+  file <- file_label(ctx, pc$id)
+  at <- match(pc$part, participants$part_id)
+  out <- list()
+
+  # gender does not change between records of one individual
+  if ("part_gender" %in% names(participants)) {
+    gender <- participants$part_gender[at]
+    ok <- !is.na(pc$panel) & !is.na(gender)
+    n_gender <- tapply(gender[ok], pc$panel[ok],
+                       function(x) length(unique(x)))
+    multi <- names(n_gender)[n_gender > 1]
+    if (length(multi) > 0) {
+      out[[1]] <- finding(
+        "R45", file = file, column = "panel_id", n_fail = length(multi),
+        n_total = length(n_gender), rows = which(pc$panel %in% multi),
+        message = paste0(
+          length(multi), " `panel_id` value(s) have more than one `part_gender` ",
+          "over their records (e.g. ", show_values(multi, 3), "): one ",
+          "`panel_id` must be one individual."
+        )
+      )
+    }
+  }
+
+  # exact age follows the survey dates: no decrease, no jump
+  sday_part <- get_column(ctx, "sday", "part_id")
+  sday_id <- get_column(ctx, "sday", "sday_id")
+  if ("part_age_exact" %in% names(participants) && !is.null(sday_part) &&
+        !is.null(sday_id)) {
+    df <- data.frame(
+      row = seq_along(pc$panel), panel = pc$panel,
+      age = to_number(participants$part_age_exact[at]),
+      date = as.Date(sday_id[match(pc$part, sday_part)], format = "%Y%m%d"),
+      stringsAsFactors = FALSE
     )
-  )
+    df <- df[!is.na(df$panel) & !is.na(df$age) & !is.na(df$date), ]
+    df <- df[order(df$panel, df$date), ]
+    if (nrow(df) > 1) {
+      n <- nrow(df)
+      same <- df$panel[-1] == df$panel[-n]
+      change <- diff(df$age)
+      years <- as.numeric(diff(df$date)) / 365.25
+      bad <- same & (change < floor(years) | change > ceiling(years))
+      if (any(bad)) {
+        out[[length(out) + 1]] <- finding(
+          "R45", variant = "age", file = file, column = "panel_id",
+          n_fail = length(unique(df$panel[-1][bad])),
+          n_total = length(unique(df$panel)), rows = df$row[-1][bad],
+          message = paste0(
+            length(unique(df$panel[-1][bad])), " `panel_id` value(s) have an ",
+            "exact age that decreases or changes by more than the time between ",
+            "the survey dates (e.g. ", show_values(df$panel[-1][bad], 3), ")."
+          )
+        )
+      }
+    }
+  }
+  bind_findings(out)
+}
+
+# R41: one panel_id per part_id, in every file -------------------------------
+
+rule_r41 <- function(ctx) {
+  panel <- get_column(ctx, "participant_extra", "panel_id")
+  part <- get_column(ctx, "participant_extra", "part_id")
+  if (is.null(panel) || is.null(part)) {
+    return(NULL)
+  }
+  out <- list()
+
+  # forward: a part_id (one survey occasion) belongs to one individual only
+  ok <- !is.na(panel) & !is.na(part)
+  n_panel <- tapply(panel[ok], part[ok], function(x) length(unique(x)))
+  multi <- names(n_panel)[n_panel > 1]
+  if (length(multi) > 0) {
+    bad <- which(part %in% multi)
+    out[[1]] <- finding(
+      "R41", file = file_label(ctx, "participant_extra"), column = "panel_id",
+      n_fail = length(multi), n_total = length(n_panel), rows = bad,
+      message = paste0(
+        length(multi), " `part_id` value(s) are linked to more than one ",
+        "`panel_id` (e.g. ", paste0("'", utils::head(multi, 3), "'",
+                                    collapse = ", "), "). A `part_id` is one ",
+        "survey occasion of one individual; give each occasion its own ",
+        "`part_id` and share the `panel_id` across the occasions."
+      )
+    )
+  }
+
+  # reverse: where another file repeats panel_id, it must give the same link
+  # (panel_id belongs in the participant extra file only, but if it is there
+  # twice the two copies must agree)
+  reference <- panel[ok][!duplicated(part[ok])]
+  names(reference) <- part[ok][!duplicated(part[ok])]
+  for (id in setdiff(names(ctx$tables), "participant_extra")) {
+    other_panel <- get_column(ctx, id, "panel_id")
+    other_part <- get_column(ctx, id, "part_id")
+    if (is.null(other_panel) || is.null(other_part)) next
+    expected <- unname(reference[other_part])
+    differ <- which(!is.na(other_panel) & !is.na(expected) &
+                      other_panel != expected)
+    if (length(differ) == 0) next
+    out[[length(out) + 1]] <- finding(
+      "R41", file = file_label(ctx, id), column = "panel_id",
+      n_fail = length(differ), n_total = length(other_panel), rows = differ,
+      message = paste0(
+        "`panel_id` differs from the `panel_id` of the same `part_id` in ",
+        file_label(ctx, "participant_extra"), "; every file must give the ",
+        "same individual for a `part_id`."
+      )
+    )
+  }
+  bind_findings(out)
 }

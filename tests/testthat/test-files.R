@@ -35,6 +35,11 @@ test_that("R02: NAMETAG syntax", {
     report <- check_contact_data(survey_dir(tables, bad), quiet = TRUE)
     expect_hit(report, "R02")
   }
+  # a documented legacy prefix (year first) is a warning, not an error
+  legacy <- check_contact_data(survey_dir(tables, "2010_Willem_BELGIUM"),
+                               quiet = TRUE)
+  expect_msg(legacy, "R02", "older prefix")
+  expect_false("R02" %in% hits(legacy, "error"))
 })
 
 test_that("R04: CSV format problems", {
@@ -121,14 +126,16 @@ test_that("R05: common files have exactly the specified columns in order", {
   schema$options$column_order <- "strict"
   expect_msg(check_survey(reordered, schema = schema), "R05", "order")
 
-  # optional columns may be absent, required ones may not
+  # the age-interval columns, cnt_age_multi and duration_exact are required
+  # (A4); only the columns marked optional (holiday) may be absent
+  required <- tables
+  required$contact$duration_exact <- NULL
+  required$participant$part_age_est_min <- NULL
+  required <- redocument(required)
+  expect_msg(check_survey(required), "R05", "required")
+
   optional <- tables
-  optional$contact$duration_exact <- NULL
-  optional$contact$cnt_age_multi <- NULL
-  optional$participant$part_age_est_min <- NULL
-  optional$participant$part_age_est_max <- NULL
-  optional$participant$part_age_exact[tables$participant$part_age_est_min >= 0 &
-                                        !is.na(tables$participant$part_age_est_min)] <- 30L
+  optional$sday$holiday <- NULL
   optional <- redocument(optional)
   expect_clean(check_survey(optional))
 })

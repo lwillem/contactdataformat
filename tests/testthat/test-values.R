@@ -112,12 +112,12 @@ test_that("R10: age encoding", {
   open$participant$part_age_exact[1] <- NA
   open$participant$part_age_est_min[1] <- 60L
   open$participant$part_age_est_max[1] <- NA
-  # an open band needs an explicit upper bound by default ...
-  expect_hit(check_survey(open), "R10")
-  # ... which is a schema setting
+  # an open-ended category (est_max = NA) is accepted by default ...
+  expect_clean(check_survey(open))
+  # ... which is a schema setting: a stricter schema asks for an upper bound
   schema <- read_schema()
-  schema$options$allow_open_age_interval <- TRUE
-  expect_clean(check_survey(open, schema = schema))
+  schema$options$allow_open_age_interval <- FALSE
+  expect_hit(check_survey(open, schema = schema), "R10")
 })
 
 test_that("R11: share of missing ages is a warning", {

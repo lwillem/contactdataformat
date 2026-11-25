@@ -113,6 +113,18 @@ rule_r02 <- function(ctx) {
     return(NULL)
   }
   pattern <- ctx$schema$nametag$pattern
+  legacy <- ctx$schema$nametag$legacy_pattern
+  if (!matches(tag, pattern) && !is.null(legacy) && matches(tag, legacy)) {
+    return(finding(
+      "R02", variant = "legacy_prefix",
+      message = paste0(
+        "NAMETAG `", tag, "` follows an older prefix convention (year first). ",
+        "This is accepted for records published before the NAME_YEAR_COUNTRY ",
+        "rule if it is documented in the Zenodo description; new submissions ",
+        "use e.g. `", ctx$schema$nametag$example, "`."
+      )
+    ))
+  }
   if (!matches(tag, pattern)) {
     return(finding(
       "R02",

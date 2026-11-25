@@ -51,15 +51,18 @@ test_that("recommended guideline choices are encoded in the schema", {
 test_that("a modified schema file changes the outcome without R changes", {
   tables <- valid_survey()
   tables$participant$hh_id[3] <- NA
-  expect_clean(check_survey(tables))
-  # Q3: require a household id for every participant
+  # hh_id is never NA (guideline decision)
+  expect_hit(check_survey(tables), "R08")
+  # a modified schema that allows NA accepts it again
   schema <- read_schema()
   yaml_text <- readLines(attr(schema, "path"))
   idx <- grep("name: hh_id", yaml_text)[1]
-  nullable <- idx + grep("nullable: true", yaml_text[idx:(idx + 3)])[1] - 1
-  yaml_text[nullable] <- sub("true", "false", yaml_text[nullable])
+  nullable <- idx + grep("nullable: false", yaml_text[idx:(idx + 3)])[1] - 1
+  yaml_text[nullable] <- sub("false", "true", yaml_text[nullable])
+  fk <- grep("references: hh_common.hh_id", yaml_text)[1] + 1
+  yaml_text[fk] <- sub("false", "true", yaml_text[fk])
   custom <- withr::local_tempfile(fileext = ".yaml")
   writeLines(yaml_text, custom)
   report <- check_survey(tables, schema = custom)
-  expect_hit(report, "R08")
+  expect_clean(report)
 })

@@ -85,10 +85,10 @@ test_that("R17: foreign keys", {
   orphan_sday$sday$part_id[1] <- "P999"
   expect_hit(check_survey(orphan_sday), "R17")
 
-  # NA household id is allowed by the schema
+  # hh_id is never NA (guideline: use hh_id = part_id without household data)
   na_hh <- tables
   na_hh$participant$hh_id[1] <- NA
-  expect_clean(check_survey(na_hh))
+  expect_hit(check_survey(na_hh), "R08")
 })
 
 test_that("R18: survey-day rows and zero-contact participants", {

@@ -29,6 +29,10 @@ nametag:
   # NAME_YEAR_COUNTRY with an optional suffix (P4). Edit to change Q1.
   pattern: '^[A-Z0-9]+_[0-9]{4}_[A-Z0-9]+(_[A-Z0-9]+)*$'
   example: "DOE_2012_BELGIUM"
+  # Records published before the rule existed may keep their original prefix
+  # (documented in the Zenodo description), e.g. 2010_Willem_BELGIUM: reported
+  # as a warning instead of an error (R02, variant legacy_prefix).
+  legacy_pattern: '^[0-9]{4}_[A-Za-z0-9]+_[A-Za-z0-9]+(_[A-Za-z0-9]+)*$'
 
 options:
   # `strict`: common-file columns must appear in the guideline order.
@@ -38,8 +42,9 @@ options:
                           "NULL", "None", "none", "-", "."]
   placeholder_values: ["-99", "-999", "-9999", "999", "9999"]
   # An age interval with only one bound (e.g. 60+ => est_min = 60, est_max = NA).
-  # The review recommends an explicit upper bound for open bands.
-  allow_open_age_interval: false
+  # Guideline (age encoding rules): an open-ended category has est_max = NA and
+  # is explained in the dictionary.
+  allow_open_age_interval: true
   max_contacts_per_participant: 100
   max_share_zero_contact_participants: 0.3
   max_share_missing_participant_age: 0.05
@@ -115,9 +120,9 @@ files:
         description: "Participant (diary) identifier; primary key"
       - name: hh_id
         type: id
-        nullable: true   # P5/Q3: set to false to require a household id
+        nullable: false   # A: hh_id never NA; hh_id = part_id if no household information
         common_mistakes: [household_id]
-        description: "Household identifier; NA if not collected"
+        description: "Household identifier; never NA (use hh_id = part_id if no household information was collected)"
       - name: part_age_exact
         type: integer
         nullable: true
@@ -125,21 +130,19 @@ files:
         range_rule: R10
         aliases: [part_age]
         common_mistakes: [participant_age]
-        description: "Exact age in completed years; NA if not exact"
+        description: "Exact age in completed years, whole number (0 for under one year); NA if not exact"
       - name: part_age_est_min
-        required: false
         type: integer
         nullable: true
         range: [0, 110]
         range_rule: R10
-        description: "Lower bound of estimated age interval (inclusive)"
+        description: "Lower bound of estimated age interval (inclusive); questionnaire category limit"
       - name: part_age_est_max
-        required: false
         type: integer
         nullable: true
         range: [0, 110]
         range_rule: R10
-        description: "Upper bound of estimated age interval (inclusive)"
+        description: "Upper bound of estimated age interval (exclusive; questionnaire category limit); NA for an open-ended category"
       - name: part_gender
         type: string
         nullable: true
@@ -149,7 +152,7 @@ files:
     foreign_keys:
       - column: hh_id
         references: hh_common.hh_id
-        allow_na: true
+        allow_na: false
 
   participant_extra:
     suffix: "participant_extra.csv"
@@ -192,25 +195,22 @@ files:
         nullable: true
         range: [0, 110]
         range_rule: R10
-        description: "Exact age of the contact in years"
+        description: "Exact age of the contact in completed years, whole number; NA if not exact"
       - name: cnt_age_est_min
-        required: false
         type: integer
         nullable: true
         range: [0, 110]
         range_rule: R10
         common_mistakes: [cnt_age_l]
-        description: "Lower bound of estimated contact age (inclusive)"
+        description: "Lower bound of estimated contact age (inclusive); questionnaire category limit"
       - name: cnt_age_est_max
-        required: false
         type: integer
         nullable: true
         range: [0, 110]
         range_rule: R10
         common_mistakes: [cnt_age_r]
-        description: "Upper bound of estimated contact age (inclusive)"
+        description: "Upper bound of estimated contact age (exclusive; questionnaire category limit); NA for an open-ended category"
       - name: cnt_age_multi
-        required: false
         type: code
         nullable: true
         codes_in_dictionary: true
@@ -254,7 +254,6 @@ files:
         common_mistakes: [cnt_frequency]
         description: "Frequency category (1 daily ... 5 first time; P10)"
       - name: duration_exact
-        required: false
         type: numeric
         nullable: true
         range: [0, 1440]
@@ -336,7 +335,7 @@ files:
       - name: sday_id
         type: date_yyyymmdd
         nullable: true
-        description: "Survey date as YYYYMMDD; a value, not a key (P3, Q4)"
+        description: "Date on which the diary or questionnaire was filled in, YYYYMMDD; a value, not a key (P3, Q4 decided: fill-in date)"
       - name: day
         type: integer
         nullable: true
@@ -356,12 +355,12 @@ files:
         type: integer
         nullable: true
         range: [0, 6]
-        description: "Day of week, 0 = Sunday ... 6 = Saturday"
+        description: "Day of week derived from sday_id, 0 = Sunday ... 6 = Saturday; NA if sday_id is NA"
       - name: holiday
         type: boolean
         nullable: true
         required: false
-        description: "TRUE if the survey day falls in a school holiday that applies to the participant (regional, not a public-holiday flag), FALSE otherwise; NA if the date is unknown"
+        description: "Optional, recommended. TRUE if sday_id is a public holiday and/or a school holiday that applies to the participant's area, FALSE otherwise; NA if the date is unknown"
     foreign_keys:
       - column: part_id
         references: participant_common.part_id
@@ -458,7 +457,7 @@ manual_items:
   - id: R25e
     title: "Holiday definition"
     when_column: sday.holiday
-    prompt: "The definition of `holiday` (school holiday, region or community, calendar source) is documented in the dictionary."
+    prompt: "The definition of `holiday` (public and/or school holiday, region or community, calendar source) is documented in the dictionary."
   - id: R24m
     title: "Metadata content"
     prompt: "Zenodo title, description, dates and geographic scope are consistent with the data files."
@@ -509,6 +508,7 @@ rules:
   - id: R02
     class: A
     severity: error
+    severities: {legacy_prefix: warning}
     title: "NAMETAG syntax NAME_YEAR_COUNTRY[_SUFFIX], ASCII upper case"
     ref: "main.tex sec. 2.1"
   - id: R03

@@ -6,7 +6,7 @@ test_that("a valid synthetic dataset passes (in memory)", {
   expect_equal(sum(report$counts[c("error", "warning")]), 0)
   # zero-contact participants are noted, manual items are listed
   expect_true("R18" %in% hits(report, "note"))
-  expect_true(all(c("R03", "R25") %in% hits(report, "manual")))
+  expect_true("R25" %in% hits(report, "manual"))
 })
 
 test_that("a valid synthetic dataset passes (folder, CSV dictionary)", {

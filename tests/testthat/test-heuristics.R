@@ -39,7 +39,7 @@ test_that("R23: imputation is flagged", {
   expect_hit(check_survey(bad_flag), "R23", "warning")
 })
 
-test_that("R03 and R25 list manual items without affecting the status", {
+test_that("R25 lists manual items without affecting the status", {
   report <- check_survey(valid_survey())
   manual <- as.data.frame(report)
   manual <- manual[manual$severity == "manual", ]

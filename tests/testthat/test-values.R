@@ -222,10 +222,6 @@ test_that("R14: category codes are documented", {
   report <- check_survey(own_scheme)
   expect_false("R14" %in% hits(report, "error"))
   expect_hit(report, "R14", "note")
-
-  aged <- tables
-  aged$contact$cnt_age_multi[1] <- "A1"
-  expect_hit(check_survey(aged), "R14")
 })
 
 test_that("parse_codes understands common dictionary notations", {
@@ -260,7 +256,7 @@ test_that("holiday accepts TRUE/FALSE and NA; 0/1 is an error", {
   tables$sday$holiday <- as.integer(tables$sday$holiday)
   report <- check_survey(tables)
   expect_hit(report, "R08", "error")
-  expect_equal(report$status, "FAIL")
+  expect_equal(report$status, "MANDATORY UPDATES NEEDED")
 })
 
 test_that("holiday with text codes is an error", {
@@ -287,7 +283,7 @@ test_that("holiday as quoted digits is the legacy form and an error", {
   writeLines(c(lines[1], unlist(body)), file)
   report <- check_contact_data(dir, quiet = TRUE)
   expect_hit(report, "R08", "error")
-  expect_equal(report$status, "FAIL")
+  expect_equal(report$status, "MANDATORY UPDATES NEEDED")
   expect_msg(report, "R08", "Legacy boolean")
 
   # unquoted digits are the same legacy form; TRUE/FALSE is clean

@@ -39,6 +39,21 @@ rule_r01 <- function(ctx) {
       )
     )
   }
+  duplicates <- duplicate_common_files(ctx)
+  for (type in names(duplicates)) {
+    out[[length(out) + 1]] <- finding(
+      "R01", variant = "duplicate_common",
+      file = paste(duplicates[[type]], collapse = ", "),
+      n_fail = length(duplicates[[type]]),
+      message = paste0(
+        "More than one ", type, " common file. `socialmixr::load_survey()` ",
+        "stacks every file whose name matches `_", type, "s?_common*.csv` into ",
+        "one table, so a second file adds duplicated or mixed rows. Keep ",
+        "exactly one `", tag, "_", type, "_common.csv` per record (merge the ",
+        "files, or move the extra ones out of the record)."
+      )
+    )
+  }
   for (id in names(schema$files)) {
     spec <- schema$files[[id]]
     expected <- paste0(tag, "_", spec$suffix)
@@ -78,7 +93,7 @@ rule_r01 <- function(ctx) {
                        hint)
     )
   }
-  for (file in ctx$misnamed) {
+  for (file in setdiff(ctx$misnamed, unlist(duplicates))) {
     out[[length(out) + 1]] <- finding(
       "R01", file = file,
       message = paste0("File name does not start with the NAMETAG `", tag,
@@ -102,7 +117,7 @@ rule_r01 <- function(ctx) {
       )
     }
   }
-  for (file in ctx$unrecognised) {
+  for (file in setdiff(ctx$unrecognised, unlist(duplicates))) {
     if (!startsWith(file, paste0(tag, "_"))) {
       out[[length(out) + 1]] <- finding(
         "R01", file = file,
@@ -125,6 +140,21 @@ rule_r01 <- function(ctx) {
     )
   }
   bind_findings(out)
+}
+
+# CSV files beyond the expected one that socialmixr would treat as a
+# participant or contact common file (it matches `_participants?_common.*.csv`
+# and `_contacts?_common.*.csv` and row-binds all hits). Named by type.
+duplicate_common_files <- function(ctx) {
+  out <- list()
+  for (type in c("participant", "contact")) {
+    expected <- ctx$file_names[[paste0(type, "_common")]]
+    pattern <- paste0("_", type, "s?_common.*\\.csv$")
+    hit <- ctx$all_files[grepl(pattern, ctx$all_files)]
+    present <- unique(c(expected, hit))
+    if (length(present) > 1) out[[type]] <- present
+  }
+  out
 }
 
 # Short description of the files in the folder, for messages
@@ -184,12 +214,6 @@ rule_r02 <- function(ctx) {
       "file carries the same prefix."
     )
   )
-}
-
-rule_r03 <- function(ctx) {
-  item <- Filter(function(i) identical(i$id, "R03"), ctx$schema$manual_items)
-  tag <- if (is.na(ctx$nametag)) "(unknown)" else ctx$nametag
-  finding("R03", message = paste0("[", tag, "] ", item[[1]]$prompt))
 }
 
 rule_r04 <- function(ctx) {
@@ -299,17 +323,7 @@ rule_r05 <- function(ctx) {
         )
       )
     }
-    if (length(extra) > 0) {
-      out[[length(out) + 1]] <- finding(
-        "R05", variant = "extra", file = file, n_fail = length(extra),
-        n_total = length(all_columns),
-        message = paste0(
-          "Column(s) not in the common file specification: ",
-          collapse_names(extra),
-          ". Move survey-specific variables to the extra file."
-        )
-      )
-    }
+    out <- c(out, extra_column_findings(ctx, id, extra, file))
     for (canonical in names(ctx$renamed[[id]])) {
       out[[length(out) + 1]] <- finding(
         "R05", variant = "alias", file = file, column = canonical,
@@ -331,6 +345,86 @@ rule_r05 <- function(ctx) {
     }
   }
   bind_findings(out)
+}
+
+# Columns of a common file that are not in its specification, sorted by what
+# the fix is: a retired column (remove), a misspelling of a specified column
+# (rename), a column that belongs to another table, e.g. `sday_id` (remove it
+# here, make sure it is there), or a survey-specific variable (extra file).
+extra_column_findings <- function(ctx, id, extra, file) {
+  if (length(extra) == 0) {
+    return(list())
+  }
+  schema <- ctx$schema
+  own <- schema_columns(schema, id)
+  retired <- schema$files[[id]]$retired_columns
+  other_ids <- setdiff(schema_ids(schema), id)
+  extra_id <- names(Filter(function(f) {
+    identical(f$kind, "extra") && identical(f$common, id)
+  }, schema$files))[1]
+  n_total <- length(own)
+  out <- list()
+  add <- function(variant, columns, message) {
+    if (length(columns) == 0) {
+      return(invisible())
+    }
+    out[[length(out) + 1]] <<- finding(
+      "R05", variant = variant, file = file, n_fail = length(columns),
+      n_total = n_total, message = message
+    )
+  }
+
+  is_retired <- extra %in% vapply(retired, function(r) r$name, character(1))
+  for (column in extra[is_retired]) {
+    note <- Filter(function(r) identical(r$name, column), retired)[[1]]$note
+    add("retired", column, paste0("`", column, "` is no longer part of the ",
+                                  "format: ", note, "."))
+  }
+  rest <- extra[!is_retired]
+
+  target <- vapply(rest, function(column) {
+    hit <- Filter(function(col) column %in% unlist(col$common_mistakes), own)
+    if (length(hit) == 0) NA_character_ else hit[[1]]$name
+  }, character(1))
+  for (column in rest[!is.na(target)]) {
+    canonical <- target[[column]]
+    add("misspelled", column, paste0(
+      "`", column, "` is not a specified column; it looks like `", canonical,
+      "`. Rename it, or remove it if `", canonical, "` is present as well."
+    ))
+  }
+  rest <- rest[is.na(target)]
+
+  home <- vapply(rest, function(column) {
+    ids <- Filter(function(other) {
+      column %in% schema_column_names(schema, other)
+    }, other_ids)
+    if (length(ids) == 0) NA_character_ else ids[[1]]
+  }, character(1))
+  for (home_id in unique(home[!is.na(home)])) {
+    columns <- rest[!is.na(home) & home == home_id]
+    key <- schema_key(schema, home_id)
+    add("misplaced", columns, paste0(
+      "Column(s) ", collapse_names(columns), " belong(s) to the `", home_id,
+      "` file (", file_label(ctx, home_id), "), which is linked to this file by `",
+      key, "`. Remove them here and keep them in that file; a column that ",
+      "occurs in two tables is merged twice by socialmixr."
+    ))
+  }
+  rest <- rest[is.na(home)]
+
+  where <- if (is.na(extra_id)) {
+    "Remove columns that are not needed."
+  } else {
+    paste0("Survey-specific variables belong in the `", extra_id,
+           "` file, linked by the key `", schema_key(schema, id),
+           "`; remove columns that are not needed.")
+  }
+  add("extra", rest, paste0(
+    "Column(s) not in the common file specification: ", collapse_names(rest),
+    ". ", where
+  ))
+  out
 }
 
 # Names in `candidates` that look like a misspelling of `name`: equal after

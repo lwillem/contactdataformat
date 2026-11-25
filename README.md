@@ -24,7 +24,7 @@ pak::pak("lwillem/contactdataformat")
 library(contactdataformat)
 
 report <- check_contact_data("path/to/NAMETAG_dataset_folder")
-report                       # status PASS / PASS WITH WARNINGS / FAIL (errors must be fixed; a record with only warnings can be submitted)
+report                       # status PASS / PASS WITH WARNINGS / MANDATORY UPDATES NEEDED (errors must be fixed; a record with only warnings can be submitted)
 summary(report)
 as.data.frame(report)        # findings: rule_id, severity, file, column, ...
 report_write(report, "report.md")   # or .csv / .json

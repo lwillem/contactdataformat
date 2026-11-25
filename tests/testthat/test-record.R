@@ -50,7 +50,7 @@ test_that("R35: a CSV dictionary is noted; R01 makes it an error", {
   report <- check_contact_data(dir, smoke_test = TRUE, quiet = TRUE)
   expect_hit(report, "R35", "note")
   expect_msg(report, "R01", "must be a spreadsheet")
-  expect_equal(report$status, "FAIL")
+  expect_equal(report$status, "MANDATORY UPDATES NEEDED")
 })
 
 test_that("R38: identifier types agree across files", {
@@ -95,7 +95,7 @@ test_that("legacy 0/1 booleans are an error, and still count as TRUE in R13", {
   expect_hit(report, "R08", "error")
   expect_msg(report, "R08", "Legacy boolean")
   expect_false("R13" %in% hits(report))
-  expect_equal(report$status, "FAIL")
+  expect_equal(report$status, "MANDATORY UPDATES NEEDED")
   tables$contact[1, loc] <- 0L
   expect_hit(check_survey(tables), "R13")
 })

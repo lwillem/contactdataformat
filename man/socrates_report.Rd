@@ -35,7 +35,7 @@ list with
 \code{warning}, \code{note}, \code{manual}, \code{waived}), \code{file}, \code{column}, \code{n_fail},
 \code{n_total}, \code{example_rows} (file lines, header = line 1), \code{message},
 \code{guideline_ref}, \code{class}, \code{original_severity} and \code{waiver_reason};
-\item \code{status}: \code{"PASS"}, \code{"PASS WITH WARNINGS"} or \code{"FAIL"};
+\item \code{status}: \code{"PASS"}, \code{"PASS WITH WARNINGS"} or \code{"MANDATORY UPDATES NEEDED"};
 \item \code{passed}: \code{TRUE} when there is no error;
 \item \code{counts}: number of findings per severity;
 \item \code{meta}: package, guideline and schema version, schema hash, timestamp,

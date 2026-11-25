@@ -295,9 +295,6 @@ rule_r11 <- function(ctx) {
     limit <- if (identical(id, "participant_common")) {
       schema$options$max_share_missing_participant_age
     } else {
-      if ("cnt_age_multi" %in% names(tab)) {
-        unknown <- unknown & is.na(tab$cnt_age_multi)
-      }
       schema$options$max_share_missing_contact_age
     }
     share <- mean(unknown)

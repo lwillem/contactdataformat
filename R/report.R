@@ -6,7 +6,7 @@
 #'   `warning`, `note`, `manual`, `waived`), `file`, `column`, `n_fail`,
 #'   `n_total`, `example_rows` (file lines, header = line 1), `message`,
 #'   `guideline_ref`, `class`, `original_severity` and `waiver_reason`;
-#' * `status`: `"PASS"`, `"PASS WITH WARNINGS"` or `"FAIL"`;
+#' * `status`: `"PASS"`, `"PASS WITH WARNINGS"` or `"MANDATORY UPDATES NEEDED"`;
 #' * `passed`: `TRUE` when there is no error;
 #' * `counts`: number of findings per severity;
 #' * `meta`: package, guideline and schema version, schema hash, timestamp,
@@ -33,7 +33,7 @@ new_socrates_report <- function(findings, ctx, run_ids, skipped, planned,
     sum(findings$severity == level)
   }, integer(1))
   status <- if (counts[["error"]] > 0) {
-    "FAIL"
+    "MANDATORY UPDATES NEEDED"
   } else if (counts[["warning"]] > 0) {
     "PASS WITH WARNINGS"
   } else {
@@ -85,7 +85,7 @@ as.data.frame.socrates_report <- function(x, row.names = NULL, # nolint: object_
 print.socrates_report <- function(x, ...) {
   # nolint start: object_usage_linter (variables used inside cli glue strings)
   meta <- x$meta
-  status_text <- switch(x$status, FAIL = cli::col_red(x$status),
+  status_text <- switch(x$status, `MANDATORY UPDATES NEEDED` = cli::col_red(x$status),
                         `PASS WITH WARNINGS` = cli::col_yellow(x$status),
                         cli::col_green(x$status))
   cli::cli_h1("SOCRATES data check: {status_text}")

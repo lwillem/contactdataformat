@@ -1,5 +1,21 @@
 # contactdataformat (development version)
 
+## 26 Nov 2026 (checker and guideline text)
+
+* The report status `FAIL` is now `MANDATORY UPDATES NEEDED` (`passed` is unchanged).
+* `cnt_age_multi` is dropped from the contact file (decision Q52): it only
+  labels `cnt_age_est_min`/`cnt_age_est_max` and socialmixr does not use it.
+  A dataset that still has it gets a specific R05 message (variant `retired`).
+* R01: more than one file that socialmixr treats as a participant or contact
+  common file (`_participants?_common*.csv`) is an error (variant `duplicate_common`).
+* R05: the message for a column outside the specification says what the fix
+  is: rename a misspelling (`cnt_others`), remove a column that belongs to
+  another table (`sday_id`), or move a survey-specific variable to the extra file.
+* The manual item R03 (NAMETAG content) is removed.
+* Dictionary reader: a sheet may start with a title block; the header row is
+  searched in the first 20 rows, `Allowed values / coding` is accepted, and
+  Office lock files (`~$...`) are ignored.
+
 ## Guideline version 1.0 (draft)
 
 * First working version. The package version follows the guideline version it

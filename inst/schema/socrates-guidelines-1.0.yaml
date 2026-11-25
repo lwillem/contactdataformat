@@ -224,11 +224,6 @@ files:
         range_rule: R10
         common_mistakes: [cnt_age_r]
         description: "Upper bound of estimated contact age (exclusive; questionnaire category limit); NA for an open-ended category"
-      - name: cnt_age_multi
-        type: code
-        nullable: true
-        codes_in_dictionary: true
-        description: "Age-class code if ages were reported in categories"
       - name: cnt_home
         type: boolean
         nullable: true
@@ -286,6 +281,11 @@ files:
         # legacy POLYMOD coding 1 = physical, 2 = not physical
         legacy_values: ["0", "1", "2"]
         description: "Physical contact (TRUE/FALSE)"
+    # Columns of earlier drafts that are no longer part of the format. A
+    # dataset that still has one gets a specific message (R05, variant retired).
+    retired_columns:
+      - name: cnt_age_multi
+        note: "the age-class label duplicates `cnt_age_est_min` and `cnt_age_est_max` (the category limits) and is not used by socialmixr; remove it, and describe the categories in the dictionary instead"
     foreign_keys:
       - column: part_id
         references: participant_common.part_id
@@ -460,9 +460,6 @@ privacy:
     - {name: belgium, lat: [49.4, 51.6], lon: [2.4, 6.5]}
 
 manual_items:
-  - id: R03
-    title: "NAMETAG content"
-    prompt: "NAMETAG is the surname of the first author of the earliest publication, the publication year, with a suffix (country, design or wave) where needed, and is unique per survey implementation."
   - id: R25a
     title: "Kindergarten and daycare"
     prompt: "Locations beyond the six common ones (kindergarten, daycare, family visit) are mapped as documented (Q2) and kept in the contact extra file."
@@ -534,9 +531,14 @@ decisions:
     where: "files.contact_common.columns[cnt_id].aliases; files.contact_common.key"
   - id: Q31
     status: decided
-    topic: "Optional columns (age interval, cnt_age_multi, duration_exact)"
+    topic: "Optional columns (age interval, duration_exact)"
     decision: "All common columns are mandatory (a uniformity rule for the checker, not a socialmixr requirement); only holiday is optional (recommended)."
     where: "files.<id>.columns[].required"
+  - id: Q52
+    status: decided
+    topic: "cnt_age_multi dropped from the contact file"
+    decision: "cnt_age_multi is removed: it only labels the category limits that cnt_age_est_min and cnt_age_est_max already hold, and socialmixr does not use it. In the three test datasets that have it (LOEDY, TSUZUKI, SON) it is either a label of exactly those two columns or entirely NA. A dataset that still carries it gets a specific R05 message."
+    where: "files.contact_common.retired_columns"
   - id: Q32
     status: decided
     topic: "Boolean coding: TRUE/FALSE required, 0/1 is an error (Q32)"
@@ -608,7 +610,7 @@ rules:
     class: A
     severity: error
     severities: {unrecognised: warning}
-    title: "Required files present and named NAMETAG_<name>; dictionary is .xlsx/.xls; no CSV with another prefix"
+    title: "Required files present and named NAMETAG_<name>; one participant_common and one contact_common file; dictionary is .xlsx/.xls; no CSV with another prefix"
     ref: "main.tex sec. 2.1, 3, 4"
   - id: R02
     class: A
@@ -616,11 +618,6 @@ rules:
     severities: {legacy_prefix: note, not_recommended: note}
     title: "NAMETAG: recommended form NAME_YEAR[_SUFFIX]; error only if unusable as a file name prefix"
     ref: "main.tex sec. 2.1"
-  - id: R03
-    class: M
-    severity: manual
-    title: "NAMETAG content is correct and unique"
-    ref: "main.tex sec. 2.1, 6"
   - id: R04
     class: A
     severity: error
@@ -629,7 +626,7 @@ rules:
   - id: R05
     class: A
     severity: error
-    severities: {order: error, extra: error, alias: note}
+    severities: {order: error, extra: error, misplaced: error, misspelled: error, retired: error, alias: note}
     title: "Common files hold the required columns (optional ones may be absent), no others"
     ref: "main.tex sec. 4"
   - id: R06

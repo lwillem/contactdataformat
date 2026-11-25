@@ -3,7 +3,7 @@ test_that("waive keeps findings in the report but they no longer fail it", {
   tables$sday$dayofweek[1] <- (tables$sday$dayofweek[1] + 1L) %% 7L
   tables$contact$cnt_id[2] <- tables$contact$cnt_id[1]
   report <- check_survey(tables)
-  expect_equal(report$status, "FAIL")
+  expect_equal(report$status, "MANDATORY UPDATES NEEDED")
 
   waived <- check_survey(tables, waive = c(
     R12 = "weekday mismatch accepted in this test",
@@ -51,14 +51,14 @@ test_that("print, summary and as.data.frame work", {
   tables$contact$cnt_id[2] <- tables$contact$cnt_id[1]
   report <- check_survey(tables, waive = c(R06 = "reviewed"))
   out <- printed(report)
-  expect_match(out, "FAIL")
+  expect_match(out, "MANDATORY UPDATES NEEDED")
   expect_match(out, "R16")
   expect_match(out, "Manual checklist")
   expect_match(out, "Waived")
 
   s <- summary(report)
   expect_s3_class(s, "summary.socrates_report")
-  expect_equal(s$status, "FAIL")
+  expect_equal(s$status, "MANDATORY UPDATES NEEDED")
   expect_output(print(s), "Findings per rule")
 
   df <- as.data.frame(report)
@@ -89,7 +89,7 @@ test_that("report_write writes Markdown, CSV and JSON", {
 
   md <- report_write(report, file.path(dir, "r.md"))
   text <- readLines(md)
-  expect_match(text[1], "FAIL")
+  expect_match(text[1], "MANDATORY UPDATES NEEDED")
   expect_true(any(grepl("R16", text)))
   expect_true(any(grepl("Manual checklist", text)))
 
@@ -99,7 +99,7 @@ test_that("report_write writes Markdown, CSV and JSON", {
 
   json <- report_write(report, file.path(dir, "r.json"))
   parsed <- jsonlite::read_json(json, simplifyVector = TRUE)
-  expect_equal(parsed$status, "FAIL")
+  expect_equal(parsed$status, "MANDATORY UPDATES NEEDED")
   expect_false(parsed$passed)
   expect_equal(parsed$meta$guideline_version, "1.0")
   expect_true("R16" %in% parsed$findings$rule_id)

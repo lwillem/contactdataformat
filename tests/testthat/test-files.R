@@ -147,7 +147,7 @@ test_that("R05: common files have exactly the specified columns in order", {
   extra$hh$region <- "VLG"
   report <- check_survey(extra)
   expect_hit(report, "R05")
-  expect_msg(report, "R05", "extra file")
+  expect_msg(report, "R05", "hh_extra")
 
   reordered <- tables
   reordered$hh <- reordered$hh[, c("country", "hh_id", "hh_size")]
@@ -158,7 +158,7 @@ test_that("R05: common files have exactly the specified columns in order", {
   schema$options$column_order <- "strict"
   expect_msg(check_survey(reordered, schema = schema), "R05", "order")
 
-  # the age-interval columns, cnt_age_multi and duration_exact are required
+  # the age-interval columns and duration_exact are required
   # (A4); only the columns marked optional (holiday) may be absent
   required <- tables
   required$contact$duration_exact <- NULL
@@ -255,4 +255,72 @@ test_that("R06 reports shared columns of an extra file once", {
   expect_equal(nrow(shared), 1)
   expect_match(shared$message, "participant_common")
   expect_match(shared$message, "sday")
+})
+
+test_that("R01: only one participant and one contact common file", {
+  tables <- valid_survey()
+  for (extra in c("DOE_2012_BELGIUM_participant_common_v2.csv",
+                  "DOE_2012_BELGIUM_participants_common.csv",
+                  "OTHER_2013_BELGIUM_participant_common.csv")) {
+    dir <- survey_dir(tables)
+    file.copy(file.path(dir, "DOE_2012_BELGIUM_participant_common.csv"),
+              file.path(dir, extra))
+    report <- check_contact_data(dir, nametag = "DOE_2012_BELGIUM",
+                                 quiet = TRUE)
+    expect_hit(report, "R01")
+    expect_msg(report, "R01", "More than one participant common file")
+  }
+  dir <- survey_dir(tables)
+  file.copy(file.path(dir, "DOE_2012_BELGIUM_contact_common.csv"),
+            file.path(dir, "DOE_2012_BELGIUM_contact_common_2.csv"))
+  expect_msg(check_contact_data(dir, quiet = TRUE), "R01",
+             "More than one contact common file")
+  # hh_common is not stacked by socialmixr
+  dir <- survey_dir(tables)
+  file.copy(file.path(dir, "DOE_2012_BELGIUM_hh_common.csv"),
+            file.path(dir, "DOE_2012_BELGIUM_hh_common_2.csv"))
+  report <- check_contact_data(dir, quiet = TRUE)
+  expect_false(any(grepl("More than one", only_rule(report, "R01")$message)))
+})
+
+test_that("R05 says where an unexpected column belongs", {
+  tables <- valid_survey()
+  tables$contact$sday_id <- "20120101"
+  tables$contact$cnt_others <- tables$contact$cnt_otherplace
+  tables$contact$cnt_otherplace <- NULL
+  tables$contact$cnt_age_multi <- NA_character_
+  tables$contact$survey_note <- "x"
+  report <- check_survey(tables)
+  r05 <- only_rule(report, "R05")
+  msg <- function(pattern) any(grepl(pattern, r05$message))
+  expect_true(msg("`sday_id` belong\\(s\\) to the `sday` file"))
+  expect_false(msg("sday_id.*extra file"))
+  expect_true(msg("`cnt_others` is not a specified column; it looks like `cnt_otherplace`"))
+  expect_true(msg("`cnt_age_multi` is no longer part of the format"))
+  expect_true(msg("`survey_note`.*`contact_extra` file"))
+})
+
+test_that("the dictionary reader finds a header row below a title block", {
+  testthat::skip_if_not_installed("openxlsx")
+  testthat::skip_if_not_installed("readxl")
+  tables <- valid_survey()
+  dir <- survey_dir(tables)
+  file <- file.path(dir, "DOE_2012_BELGIUM_dictionary.xlsx")
+  wb <- openxlsx::createWorkbook()
+  openxlsx::addWorksheet(wb, "INDEX")
+  openxlsx::writeData(wb, "INDEX", data.frame(a = "One sheet per data file"))
+  dict <- tables$dictionary
+  for (id in unique(dict$file)) {
+    sheet <- dict[dict$file == id, c("variable", "description", "type", "values")]
+    names(sheet) <- c("Variable", "Description", "Type", "Allowed values")
+    openxlsx::addWorksheet(wb, id)
+    openxlsx::writeData(wb, id, paste0("DOE_2012_BELGIUM_", id, ".csv"),
+                        startRow = 1, colNames = FALSE)
+    openxlsx::writeData(wb, id, "PK: part_id", startRow = 2, colNames = FALSE)
+    openxlsx::writeData(wb, id, sheet, startRow = 4)
+  }
+  openxlsx::saveWorkbook(wb, file, overwrite = TRUE)
+  report <- check_contact_data(dir, quiet = TRUE)
+  expect_false(any(grepl("no sheet/section", only_rule(report, "R15")$message)))
+  expect_clean(report)
 })

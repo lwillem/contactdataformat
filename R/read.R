@@ -25,6 +25,8 @@ read_socrates <- function(path, nametag = NULL, schema = "latest") {
   }
   all_files <- sort(list.files(path, all.files = FALSE))
   all_files <- all_files[!dir.exists(file.path(path, all_files))]
+  # Office lock files (`~$name.xlsx`) exist only while the file is open
+  all_files <- all_files[!startsWith(all_files, "~$")]
 
   known <- known_suffixes(schema)
   inferred <- infer_nametags(all_files, known)
@@ -293,7 +295,8 @@ dictionary_field_aliases <- list(
                   "variable label"),
   type = c("type", "data type", "datatype", "variable type"),
   values = c("values", "allowed values", "allowed values and meaning",
-             "coding", "codes", "categories", "allowed value", "value labels")
+             "coding", "codes", "categories", "allowed value", "value labels",
+             "allowed values coding", "allowed values or coding")
 )
 
 canonical_field <- function(header) {
@@ -383,15 +386,46 @@ read_dictionary <- function(file, nametag, schema) {
   out
 }
 
+# A dictionary sheet may start with a title (the file name) and a line on the
+# keys before the header row (`Variable | Description | Type ...`). Use the
+# first of the top rows that has a variable column and at least one more
+# dictionary field as the header; otherwise the first row, as in a plain table.
+dictionary_sheet_table <- function(raw, max_rows = 20) {
+  if (nrow(raw) == 0 || ncol(raw) == 0) {
+    return(raw)
+  }
+  header_at <- 1L
+  for (i in seq_len(min(max_rows, nrow(raw)))) {
+    fields <- canonical_field(vapply(raw[i, ], function(x) {
+      if (is.na(x)) "" else as.character(x)
+    }, character(1)))
+    if ("variable" %in% fields && sum(!is.na(unique(fields))) >= 2) {
+      header_at <- i
+      break
+    }
+  }
+  header <- vapply(raw[header_at, ], function(x) {
+    if (is.na(x)) "" else trimws(as.character(x))
+  }, character(1))
+  empty <- header == ""
+  header[empty] <- paste0("...", which(empty))
+  out <- raw[-seq_len(header_at), , drop = FALSE]
+  names(out) <- header
+  rownames(out) <- NULL
+  out
+}
+
 read_excel_dictionary <- function(file, nametag, schema) {
   sheets <- readxl::excel_sheets(file)
   pieces <- lapply(sheets, function(sheet) {
-    d <- as.data.frame(
+    raw <- as.data.frame(
       suppressMessages(
-        readxl::read_excel(file, sheet = sheet, col_types = "text")
+        readxl::read_excel(file, sheet = sheet, col_types = "text",
+                           col_names = FALSE)
       ),
       stringsAsFactors = FALSE
     )
+    d <- dictionary_sheet_table(raw)
     d$file <- sheet
     d
   })

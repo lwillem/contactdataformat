@@ -18,7 +18,7 @@ test_that("package MAJOR.MINOR equals the newest guideline version", {
 test_that("the rule catalogue lists classes, severities and implementation", {
   rules <- list_rules()
   # R24 (metadata file) was dropped on 2026-11-25; its id is not reused
-  expect_true(all(sprintf("R%02d", setdiff(1:40, 24)) %in% rules$rule_id))
+  expect_true(all(sprintf("R%02d", setdiff(1:40, c(3, 24))) %in% rules$rule_id))
   expect_false("R24" %in% rules$rule_id)
   expect_true(all(rules$class %in% c("A", "X", "H", "M")))
   expect_true(all(rules$severity %in% c("error", "warning", "note", "manual")))

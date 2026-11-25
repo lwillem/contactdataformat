@@ -50,7 +50,6 @@ build_example_survey <- function(n_participants, with_holiday = FALSE) {
     cnt_age_exact = sample(c(0:85, NA), n, replace = TRUE),
     cnt_age_est_min = NA_integer_,
     cnt_age_est_max = NA_integer_,
-    cnt_age_multi = NA_character_,
     stringsAsFactors = FALSE
   )
   for (column in location) {
@@ -115,8 +114,7 @@ example_dictionary <- function(tables) {
   schema <- read_schema("latest")
   codes <- c(
     frequency_multi = "1 = (almost) daily; 2 = weekly; 3 = monthly; 4 = less often; 5 = first time",
-    duration_multi = "1 = <5 min; 2 = 5-15 min; 3 = 15-60 min; 4 = 1-4 h; 5 = >=4 h",
-    cnt_age_multi = "no categories used"
+    duration_multi = "1 = <5 min; 2 = 5-15 min; 3 = 15-60 min; 4 = 1-4 h; 5 = >=4 h"
   )
   rows <- lapply(names(tables), function(id) {
     columns <- names(tables[[id]])

@@ -75,7 +75,7 @@ build_example_survey <- function(n_participants, with_holiday = FALSE) {
   dates <- as.Date("2011-01-10") + (seq_len(n_participants) %% 14)
   sday <- data.frame(
     part_id = part_id,
-    sday_id = format(dates, "%Y%m%d"),
+    sday_id = format(dates, "%Y-%m-%d"),
     day = as.integer(format(dates, "%d")),
     month = as.integer(format(dates, "%m")),
     year = as.integer(format(dates, "%Y")),
@@ -137,7 +137,7 @@ example_dictionary <- function(tables) {
       }, character(1)),
       type = vapply(seq_along(columns), function(i) {
         type <- specs[[i]]$type
-        if (is.null(type)) "string" else if (type == "date_yyyymmdd") "string" else type
+        if (is.null(type)) "string" else if (type == "date_iso") "string" else type
       }, character(1)),
       values = ifelse(columns %in% names(codes), codes[columns], NA_character_),
       stringsAsFactors = FALSE

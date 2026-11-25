@@ -48,7 +48,7 @@ test_that("R08: column types and mandatory values", {
   expect_setequal(only_rule(report, "R08")$column, c("part_age_exact", "hh_size"))
 
   date <- tables
-  date$sday$sday_id[1] <- "2011-01-10"
+  date$sday$sday_id[1] <- "20110110"  # legacy YYYYMMDD is not ISO
   expect_hit(check_survey(date), "R08")
 
   missing_key <- tables
@@ -140,7 +140,7 @@ test_that("R12: survey day consistency", {
   tables <- valid_survey()
 
   invalid <- tables
-  invalid$sday$sday_id[1] <- "20110231"
+  invalid$sday$sday_id[1] <- "2011-02-31"
   expect_hit(check_survey(invalid), "R12")
 
   mismatch <- tables

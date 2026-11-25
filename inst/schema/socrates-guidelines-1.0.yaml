@@ -81,9 +81,9 @@ types:
   code:
     pattern: '^[^\s,"]([^,"]*[^\s,"])?$'
     description: "Category code: string or integer"
-  date_yyyymmdd:
-    pattern: '^[0-9]{8}$'
-    description: "Calendar date as YYYYMMDD"
+  date_iso:
+    pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+    description: "Calendar date as ISO 8601 YYYY-MM-DD"
   string:
     description: "Free text"
 
@@ -333,9 +333,9 @@ files:
         unique: true
         description: "Participant identifier; primary key"
       - name: sday_id
-        type: date_yyyymmdd
+        type: date_iso
         nullable: true
-        description: "Date on which the diary or questionnaire was filled in, YYYYMMDD; a value, not a key (P3, Q4 decided: fill-in date)"
+        description: "Date on which the diary or questionnaire was filled in, YYYY-MM-DD; a value, not a key (P3, Q4 decided: fill-in date)"
       - name: day
         type: integer
         nullable: true
@@ -450,7 +450,7 @@ manual_items:
     prompt: "Age intervals use the documented bounds convention (inclusive or exclusive) in the dictionary (Q4/C4)."
   - id: R25c
     title: "Survey day"
-    prompt: "sday_id is the documented survey day (date of entry or assigned diary day) and the choice is stated in the dictionary (Q4)."
+    prompt: "sday_id is the date on which the diary or questionnaire was filled in (Q4 decided)."
   - id: R25d
     title: "Proxy respondents"
     prompt: "How proxy-reported participants and imputed contacts are coded is documented (Q5, P12)."
@@ -564,7 +564,7 @@ rules:
     class: A
     severity: error
     severities: {weekday: warning}
-    title: "Survey day: valid YYYYMMDD, day/month/year match, weekday"
+    title: "Survey day: valid YYYY-MM-DD, day/month/year match, weekday"
     ref: "main.tex sec. 4.4"
   - id: R13
     class: A

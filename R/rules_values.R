@@ -288,14 +288,14 @@ rule_r12 <- function(ctx) {
   file <- file_label(ctx, id)
   out <- list()
   x <- tab$sday_id
-  parsed <- as.Date(x, format = "%Y%m%d")
-  valid <- !is.na(x) & !is.na(parsed) & format(parsed, "%Y%m%d") == x
+  parsed <- as.Date(x, format = "%Y-%m-%d")
+  valid <- !is.na(x) & !is.na(parsed) & format(parsed, "%Y-%m-%d") == x
   bad <- which(!is.na(x) & !valid)
   if (length(bad) > 0) {
     out[[1]] <- finding(
       "R12", file = file, column = "sday_id", n_fail = length(bad),
       n_total = length(x), rows = bad,
-      message = paste0("Not a valid calendar date in YYYYMMDD format: ",
+      message = paste0("Not a valid calendar date in YYYY-MM-DD format: ",
                        show_values(x[bad]), ".")
     )
   }
@@ -322,9 +322,7 @@ rule_r12 <- function(ctx) {
         "R12", variant = "weekday", file = file, column = "dayofweek",
         n_fail = length(wrong), n_total = length(x), rows = wrong,
         message = paste0(
-          "`dayofweek` (0 = Sunday) differs from the weekday of `sday_id`. ",
-          "If `sday_id` is the date of entry and `dayofweek` the assigned ",
-          "diary day, waive this rule and document it in the dictionary."
+          "`dayofweek` (0 = Sunday) differs from the weekday of `sday_id`."
         )
       )
     }

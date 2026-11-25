@@ -6,7 +6,7 @@ test_that("waive keeps findings in the report but they no longer fail it", {
   expect_equal(report$status, "FAIL")
 
   waived <- check_survey(tables, waive = c(
-    R12 = "diary day is the assigned day, see dictionary",
+    R12 = "weekday mismatch accepted in this test",
     R16 = "duplicated on purpose in this test",
     R06 = "extra file follows the duplicated key"
   ))
@@ -15,7 +15,7 @@ test_that("waive keeps findings in the report but they no longer fail it", {
   f <- as.data.frame(waived)
   expect_setequal(f$rule_id[f$severity == "waived"], c("R12", "R16", "R06"))
   expect_match(f$waiver_reason[f$rule_id == "R12" & f$severity == "waived"],
-               "assigned day")
+               "weekday mismatch")
   expect_equal(waived$counts[["waived"]], 3)
 })
 

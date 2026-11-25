@@ -359,9 +359,10 @@ extra_column_findings <- function(ctx, id, extra, file) {
   own <- schema_columns(schema, id)
   retired <- schema$files[[id]]$retired_columns
   other_ids <- setdiff(schema_ids(schema), id)
-  extra_id <- names(Filter(function(f) {
-    identical(f$kind, "extra") && identical(f$common, id)
-  }, schema$files))[1]
+  extra_id <- schema$files[[id]]$extra_file %||%
+    names(Filter(function(f) {
+      identical(f$kind, "extra") && identical(f$common, id)
+    }, schema$files))[1]
   n_total <- length(own)
   out <- list()
   add <- function(variant, columns, message) {

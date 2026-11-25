@@ -17,6 +17,11 @@
   is: rename a misspelling (`cnt_others`), remove a column that belongs to
   another table (`sday_id`), or move a survey-specific variable to the extra file.
 * The manual item R03 (NAMETAG content) is removed.
+* Survey-day file: no extra file (one row per participant); R05 points to
+  `participant_extra` for survey-specific day variables and names near-misses
+  (`is_holiday` for `holiday`, `round` for `wave`, `weekday` for `dayofweek`).
+* Schema references (`guideline_ref`) now point to sections of `main.tex`;
+  internal review ids are removed from descriptions and the manual checklist.
 * R36 (Zenodo metadata) is built. A local folder has no Zenodo metadata and
   gets no finding; a folder downloaded with contactsurveys is checked through
   its `NAMETAG_reference.json`, and the new optional `check_zenodo_record()`

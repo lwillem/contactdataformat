@@ -6,13 +6,13 @@
 # `decisions` and can be changed by editing the value they point to; pass the
 # edited file to the checker with `check_contact_data(path, schema = "<file>")`.
 #
-# Status: guideline version 1.0 DRAFT. It follows the recommended choices of
-# REVIEW_guidelines_vs_flanders2010.md (P1-P11, section 6A.2a/6A.7/6A.8):
-# `cnt_id` (legacy alias `cont_id`), `cnt_otherplace`, `part_age_exact`
-# (alias `part_age`), survey-day file keyed by `part_id`, no
-# `sday_id` in the contact file, TRUE/FALSE booleans (0/1 is an error), UTF-8,
-# optional columns may be absent, column order not enforced, no study metadata
-# file (socialmixr reads the first .json file of a record as its citation).
+# Status: guideline version 1.0 DRAFT. Main choices: `cnt_id` (legacy alias
+# `cont_id`), `cnt_otherplace`, `part_age_exact` (alias `part_age`), survey-day
+# file keyed by `part_id`, no `sday_id` in the contact file, TRUE/FALSE
+# booleans (0/1 is an error), UTF-8, all common columns mandatory (only
+# `holiday` and `wave` are optional), column order not enforced, no study
+# metadata file (socialmixr reads the first .json file of a record as its
+# citation).
 
 schema_format: 1
 guideline_version: "1.0"
@@ -26,7 +26,7 @@ title: "SOCRATES guidelines for data formatting, version 1.0 (draft)"
 na_token: "NA"
 
 nametag:
-  # Recommended form: NAME_YEAR with an optional suffix (P4; the suffix can be the country, a design or a wave). A name
+  # Recommended form: NAME_YEAR with an optional suffix (the suffix can be the country, a design or a wave). A name
   # that does not follow it is a note (R02, variant not_recommended), not an
   # error. Only a name that cannot serve as a file name prefix is an error
   # (R02): it must match `valid_pattern`. The prefix itself must be the same on
@@ -41,7 +41,7 @@ nametag:
 
 options:
   # `strict`: common-file columns must appear in the guideline order.
-  # `ignore`: only presence is checked (socialmixr joins by name). (Q14)
+  # `ignore`: only presence is checked (socialmixr joins by name).
   column_order: ignore
   missing_token_aliases: ["na", "Na", "N/A", "n/a", "NaN", "nan", "null",
                           "NULL", "None", "none", "-", ".", "unknown", "Unknown",
@@ -64,7 +64,7 @@ options:
   # Index-like first column names that indicate exported row names.
   rowname_column_names: ["", "X", "V1", "...1", "Unnamed: 0", "row.names",
                          "rownames", "row_names"]
-  # The dictionary in the published record is a spreadsheet (Q16). A CSV
+  # The dictionary in the published record is a spreadsheet. A CSV
   # dictionary is still read, so that the dictionary checks can run locally,
   # but it is an error in R01 (variant dictionary_format).
   dictionary_extensions: ["xlsx", "xls"]
@@ -266,7 +266,7 @@ files:
         codes_in_dictionary: true
         recommended_codes: ["1", "2", "3", "4", "5"]
         common_mistakes: [cnt_frequency]
-        description: "Frequency category (1 daily ... 5 first time; P10)"
+        description: "Frequency category (1 daily ... 5 first time)"
       - name: duration_exact
         type: numeric
         nullable: true
@@ -278,7 +278,7 @@ files:
         codes_in_dictionary: true
         recommended_codes: ["1", "2", "3", "4", "5"]
         common_mistakes: [cnt_duration]
-        description: "Duration category (1 <5 min ... 5 >=4 h; P10)"
+        description: "Duration category (1 <5 min ... 5 >=4 h)"
       - name: phys_contact
         type: boolean
         nullable: true
@@ -290,7 +290,7 @@ files:
     # dataset that still has one gets a specific message (R05, variant retired).
     retired_columns:
       - name: cnt_age_multi
-        note: "the age-class label duplicates `cnt_age_est_min` and `cnt_age_est_max` (the category limits) and is not used by socialmixr; remove it, and describe the categories in the dictionary instead"
+        note: "the age-class label duplicates `cnt_age_est_min` and `cnt_age_est_max` (the category limits) and is not used by socialmixr; remove it"
     foreign_keys:
       - column: part_id
         references: participant_common.part_id
@@ -351,7 +351,10 @@ files:
     entity: sday
     required: true
     key: part_id
-    description: "Survey-day information, one record per participant (P3)"
+    description: "Survey-day information, one record per participant"
+    # No extra file: one row per participant, so further survey-day variables
+    # go in this extra file (same key, part_id); R05 says so.
+    extra_file: participant_extra
     columns:
       - name: part_id
         type: id
@@ -361,7 +364,8 @@ files:
       - name: sday_id
         type: date_yyyymmdd
         nullable: true
-        description: "Date on which the diary or questionnaire was filled in, YYYYMMDD (e.g. 20110110); a value, not a key (P3, Q4 decided: fill-in date)"
+        common_mistakes: [survey_date, survey_day]
+        description: "Date on which the diary or questionnaire was filled in, YYYYMMDD (e.g. 20110110); a value, not a key"
       - name: day
         type: integer
         nullable: true
@@ -381,16 +385,19 @@ files:
         type: integer
         nullable: true
         range: [0, 6]
+        common_mistakes: [weekday, day_of_week]
         description: "Day of week derived from sday_id, 0 = Sunday ... 6 = Saturday; NA if sday_id is NA"
       - name: holiday
         type: boolean
         nullable: true
         required: false
+        common_mistakes: [is_holiday, public_holiday]
         description: "Optional, recommended. TRUE if sday_id is a public holiday and/or a school holiday that applies to the participant's area, FALSE otherwise; NA if the date is unknown"
       - name: wave
         type: string
         nullable: true
         required: false
+        common_mistakes: [round, survey_round]
         description: "Optional, recommended for panel and repeated studies. Wave or round of the record (e.g. 1, 2, 3 or W1); one part_id is one person in one wave on one diary day. The dictionary says what a wave is"
     foreign_keys:
       - column: part_id
@@ -403,7 +410,7 @@ files:
 restricted_files:
   geo_restricted:
     suffix: "geo_restricted.csv"
-    description: "Optional restricted geography file (P24); never public"
+    description: "Optional restricted geography file; never public"
     columns: [part_id, hh_id, zip_code, nis_code, municipality_name,
               latitude, longitude, geo_reference_year, geo_review_status]
 
@@ -416,7 +423,7 @@ recommended_extra:
   contact_extra:
     - name: cnt_imputed
       type: boolean
-      description: "TRUE if the contact is imputed or aggregated (P12)"
+      description: "TRUE if the contact is imputed or aggregated"
   participant_extra:
     - name: panel_id
       type: id
@@ -447,7 +454,7 @@ privacy:
     address, street, lat, latitude, lon, lng, longitude, xcoord, ycoord,
     coord, coords, coordinates]
   # Municipality-level tokens; also flagged (public files carry region and
-  # province only, see Q20).
+  # province only).
   geography_tokens_declared: [municipality, city, town, nis, gemeente, commune,
     postcode_name]
   # Direct identifiers: an error (R26 variant direct).
@@ -467,16 +474,16 @@ privacy:
 manual_items:
   - id: R25a
     title: "Kindergarten and daycare"
-    prompt: "Locations beyond the six common ones (kindergarten, daycare, family visit) are mapped as documented (Q2) and kept in the contact extra file."
+    prompt: "Locations beyond the six common ones (kindergarten, daycare, family visit) are mapped as documented and kept in the contact extra file."
   - id: R25b
     title: "Age-interval bounds"
-    prompt: "Age intervals use the documented bounds convention (inclusive or exclusive) in the dictionary (Q4/C4)."
+    prompt: "Age intervals follow the convention lower bound inclusive, upper bound exclusive (open-ended category: upper bound NA), and the dictionary states it."
   - id: R25c
     title: "Survey day"
-    prompt: "sday_id is the date on which the diary or questionnaire was filled in (Q4 decided)."
+    prompt: "sday_id is the date on which the diary or questionnaire was filled in."
   - id: R25d
     title: "Proxy respondents"
-    prompt: "How proxy-reported participants and imputed contacts are coded is documented (Q5, P12)."
+    prompt: "How proxy-reported participants and imputed contacts are coded is documented."
   - id: R25e
     title: "Holiday definition"
     when_column: sday.holiday
@@ -637,7 +644,7 @@ rules:
     class: A
     severity: error
     title: "CSV format: UTF-8, comma, header, no row names, no empty cells"
-    ref: "main.tex sec. 2.1, 2.3"
+    ref: "main.tex sec. 2.3, 2.4"
   - id: R05
     class: A
     severity: error
@@ -649,7 +656,7 @@ rules:
     severity: error
     severities: {shared: warning}
     title: "Extra files: same key set as common, no duplicated columns"
-    ref: "main.tex sec. 3"
+    ref: "main.tex sec. 3, 4"
   - id: R07
     class: A
     severity: error
@@ -661,7 +668,7 @@ rules:
     severity: error
     severities: {legacy_boolean: error}
     title: "Column types (integer, numeric, string, boolean TRUE/FALSE)"
-    ref: "main.tex sec. 4"
+    ref: "main.tex sec. 2.4, 4"
   - id: R09
     class: A
     severity: error
@@ -673,35 +680,35 @@ rules:
     severity: error
     severities: {empty_interval: warning}
     title: "Age rules: exact xor interval, min < max (upper bound exclusive), 0-110"
-    ref: "main.tex sec. 4.1, 4.2"
+    ref: "main.tex sec. 4 (age encoding rules)"
   - id: R11
     class: H
     severity: warning
     title: "Age plausibility (share of missing ages)"
-    ref: "REVIEW D6"
+    ref: "main.tex sec. 6"
   - id: R12
     class: A
     severity: error
     severities: {weekday: warning}
     title: "Survey day: valid YYYYMMDD, day/month/year match, weekday"
-    ref: "main.tex sec. 4.4"
+    ref: "main.tex sec. 4 (survey-day file)"
   - id: R13
     class: A
     severity: error
     title: "Location logic: a contact has at least one TRUE location or all NA"
-    ref: "main.tex sec. 4.2, P9"
+    ref: "main.tex sec. 4 (contact common file)"
   - id: R14
     class: X
     severity: error
     severities: {scheme: note}
     title: "Category codes are covered by the dictionary"
-    ref: "main.tex sec. 4.2, P10"
+    ref: "main.tex sec. 4 (contact common file, dictionary)"
   - id: R15
     class: X
     severity: error
     severities: {phantom: warning, type: warning, layout: note, type_word: note, skipped: note}
     title: "Dictionary documents every column with required fields"
-    ref: "main.tex sec. 4.5"
+    ref: "main.tex sec. 4 (dictionary file)"
   - id: R16
     class: A
     severity: error
@@ -717,12 +724,12 @@ rules:
     severity: error
     severities: {zero_contacts: note}
     title: "Every participant has a survey-day row; zero-contact participants kept"
-    ref: "REVIEW B6, P7"
+    ref: "main.tex sec. 4 (survey-day file)"
   - id: R19
     class: X
     severity: warning
     title: "Household size is not smaller than participants per household"
-    ref: "REVIEW 4.5"
+    ref: "main.tex sec. 4 (household common file)"
   - id: R20
     class: X
     severity: warning
@@ -738,69 +745,69 @@ rules:
     class: H
     severity: warning
     title: "Household size is plausible (not above max_plausible_hh_size)"
-    ref: "other_code/validate_socrates.R comparison, 25 Nov 2026"
+    ref: "main.tex sec. 4 (household common file)"
   - id: R43
     class: H
     severity: note
     severities: {location: warning}
     title: "Columns that are entirely NA (a whole location group NA is a warning)"
-    ref: "test datasets, 25 Nov 2026"
+    ref: "main.tex sec. 4"
   - id: R44
     class: H
     severity: warning
     title: "Share of participants without a survey date (sday_id = NA)"
-    ref: "test datasets, 25 Nov 2026"
+    ref: "main.tex sec. 4 (survey-day file)"
   - id: R45
     class: X
     severity: warning
     severities: {age: warning}
     title: "Panel ids: same individual keeps gender and a plausible age over time"
-    ref: "test datasets, 25 Nov 2026"
+    ref: "main.tex sec. 5"
   - id: R21
     class: H
     severity: warning
     severities: {imputed: note}
     title: "Contact count plausibility"
-    ref: "REVIEW D6"
+    ref: "main.tex sec. 6"
   - id: R22
     class: A
     severity: error
     severities: {skipped: note}
     title: "socialmixr smoke test (load_survey, contact_matrix)"
-    ref: "REVIEW 6"
+    ref: "main.tex sec. 6"
   - id: R23
     class: A
     severity: warning
     title: "Imputation or aggregation is flagged"
-    ref: "REVIEW F3, P12"
+    ref: "main.tex sec. 4, appendix A"
   - id: R25
     class: M
     severity: manual
     title: "Convention-dependent decisions are documented"
-    ref: "REVIEW Q2, Q4, Q5"
+    ref: "main.tex sec. 6 (manual review)"
   - id: R26
     class: H
     severity: warning
     severities: {direct: error}
     title: "No personal identifiers among column names (direct identifiers: error; `name`: warning)"
-    ref: "REVIEW 6.6"
+    ref: "main.tex sec. 6, 7"
   - id: R27
     class: A
     severity: error
     severities: {coords_values: warning, zip_values: warning}
     title: "Privacy scan: no ZIP, address or coordinates in the public record"
-    ref: "REVIEW P23"
+    ref: "main.tex sec. 6, 7"
   - id: R34
     class: X
     severity: error
     title: "Record hygiene: no CSV that socialmixr would merge unintentionally, at most one JSON"
-    ref: "REVIEW P30, P31"
+    ref: "main.tex sec. 3, 6"
   - id: R35
     class: A
     severity: error
     severities: {skipped: note, dictionary_csv: note}
     title: "Merge simulation: socialmixr load keeps row counts, no merge warnings"
-    ref: "REVIEW P30"
+    ref: "main.tex sec. 6"
   - id: R36
     class: A
     severity: error
@@ -812,55 +819,55 @@ rules:
     severity: error
     planned: true
     title: "Silent-failure columns exist under exact names (currently covered by R05)"
-    ref: "REVIEW P35, P37"
+    ref: "main.tex sec. 4"
   - id: R40
     class: X
     severity: error
     title: "One spelling of the contact ID (cnt_id or legacy cont_id) per record"
-    ref: "REVIEW 6A.2a"
+    ref: "main.tex sec. 2.2"
   - id: R38
     class: X
     severity: error
     title: "Identifier type is the same in every file (integer or string)"
-    ref: "REVIEW 6A T5"
+    ref: "main.tex sec. 2.2"
   - id: R39
     class: A
     severity: error
     title: "Silent-wrong-result values beyond R08-R10 (diary_weight numeric, no NA)"
-    ref: "REVIEW 6A"
+    ref: "main.tex sec. 6, appendix A"
   - id: R28
     class: X
     severity: error
     planned: true
     title: "Restricted geography file: one row per part_id, keys match"
-    ref: "REVIEW P24"
+    ref: "main.tex sec. 6"
   - id: R29
     class: A
     severity: error
     planned: true
     title: "ZIP format (BE: four digits, 1000-9992, string)"
-    ref: "REVIEW P24"
+    ref: "main.tex sec. 6"
   - id: R30
     class: X
     severity: error
     planned: true
     title: "ZIP and municipality consistent with the reference list"
-    ref: "REVIEW P26"
+    ref: "main.tex sec. 6"
   - id: R31
     class: X
     severity: warning
     planned: true
     title: "Household members share ZIP/municipality"
-    ref: "REVIEW F13"
+    ref: "main.tex sec. 6"
   - id: R32
     class: X
     severity: error
     planned: true
     title: "No unreviewed geography status left"
-    ref: "REVIEW P27"
+    ref: "main.tex sec. 6"
   - id: R33
     class: X
     severity: warning
     planned: true
     title: "Geography consistent with declared region"
-    ref: "REVIEW P25"
+    ref: "main.tex sec. 6"

@@ -375,3 +375,18 @@ test_that("R15 names the column a misspelled dictionary entry looks like", {
   report <- check_survey(tables)
   expect_msg(report, "R15", "looks like `cnt_age_exact`")
 })
+
+test_that("R05 for the survey-day file points to the participant extra file", {
+  tables <- valid_survey()
+  tables$sday$studyday <- "1"
+  tables$sday$is_holiday <- "FALSE"
+  tables$sday$round <- "1"
+  tables$sday$weekday <- "1"
+  report <- check_survey(tables)
+  r05 <- only_rule(report, "R05")
+  msg <- function(pattern) any(grepl(pattern, r05$message))
+  expect_true(msg("`studyday`.*`participant_extra` file.*`part_id`"))
+  expect_true(msg("`is_holiday` is not a specified column; it looks like `holiday`"))
+  expect_true(msg("`round` is not a specified column; it looks like `wave`"))
+  expect_true(msg("`weekday` is not a specified column; it looks like `dayofweek`"))
+})

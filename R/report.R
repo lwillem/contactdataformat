@@ -5,7 +5,8 @@
 #' * `findings`: data frame with columns `rule_id`, `severity` (`error`,
 #'   `warning`, `note`, `manual`, `waived`), `file`, `column`, `n_fail`,
 #'   `n_total`, `example_rows` (file lines, header = line 1), `message`,
-#'   `guideline_ref`, `class`, `original_severity` and `waiver_reason`;
+#'   and `guideline_ref`; the message of a waived finding starts with
+#'   `Waived (reason):`;
 #' * `status`: `"PASS"`, `"PASS WITH WARNINGS"` or `"MANDATORY UPDATES NEEDED"`;
 #' * `passed`: `TRUE` when there is no error;
 #' * `counts`: number of findings per severity;
@@ -131,7 +132,7 @@ print.socrates_report <- function(x, ...) {
     for (i in seq_len(nrow(waived))) {
       cli::cli_bullets(c(
         "*" = paste0(waived$rule_id[i], ": ",
-                     cli_escape(waived$waiver_reason[i]))
+                     cli_escape(waived$message[i]))
       ))
     }
   }
@@ -282,8 +283,7 @@ report_markdown <- function(report) {
   waived <- report$findings[report$findings$severity == "waived", , drop = FALSE]
   if (nrow(waived) > 0) {
     lines <- c(lines, "## Waived", "",
-               paste0("* ", waived$rule_id, ": ", waived$waiver_reason,
-                      " (", md_escape(waived$message), ")"), "")
+               paste0("* ", waived$rule_id, ": ", md_escape(waived$message)), "")
   }
   manual <- report$findings[report$findings$severity == "manual", , drop = FALSE]
   if (nrow(manual) > 0) {

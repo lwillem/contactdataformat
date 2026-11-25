@@ -14,7 +14,7 @@ test_that("waive keeps findings in the report but they no longer fail it", {
   expect_true(waived$passed)
   f <- as.data.frame(waived)
   expect_setequal(f$rule_id[f$severity == "waived"], c("R12", "R16", "R06"))
-  expect_match(f$waiver_reason[f$rule_id == "R12" & f$severity == "waived"],
+  expect_match(f$message[f$rule_id == "R12" & f$severity == "waived"],
                "weekday mismatch")
   expect_equal(waived$counts[["waived"]], 3)
 })

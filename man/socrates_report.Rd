@@ -34,7 +34,8 @@ list with
 \item \code{findings}: data frame with columns \code{rule_id}, \code{severity} (\code{error},
 \code{warning}, \code{note}, \code{manual}, \code{waived}), \code{file}, \code{column}, \code{n_fail},
 \code{n_total}, \code{example_rows} (file lines, header = line 1), \code{message},
-\code{guideline_ref}, \code{class}, \code{original_severity} and \code{waiver_reason};
+and \code{guideline_ref}; the message of a waived finding starts with
+\verb{Waived (reason):};
 \item \code{status}: \code{"PASS"}, \code{"PASS WITH WARNINGS"} or \code{"MANDATORY UPDATES NEEDED"};
 \item \code{passed}: \code{TRUE} when there is no error;
 \item \code{counts}: number of findings per severity;

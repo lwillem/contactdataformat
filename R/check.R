@@ -205,9 +205,6 @@ finalise_findings <- function(findings, schema, waive) {
   if (nrow(findings) == 0) {
     findings$severity <- character()
     findings$guideline_ref <- character()
-    findings$class <- character()
-    findings$original_severity <- character()
-    findings$waiver_reason <- character()
     return(findings[, report_columns()])
   }
   findings$severity <- purrr::map2_chr(
@@ -217,15 +214,14 @@ finalise_findings <- function(findings, schema, waive) {
   findings$guideline_ref <- purrr::map_chr(findings$rule_id, function(id) {
     schema_rule(schema, id)$ref %||% NA_character_
   })
-  findings$class <- purrr::map_chr(findings$rule_id, function(id) {
-    schema_rule(schema, id)$class %||% NA_character_
-  })
-  findings$original_severity <- findings$severity
-  findings$waiver_reason <- NA_character_
   is_waived <- findings$rule_id %in% names(waive) &
     findings$severity %in% c("error", "warning")
   findings$severity[is_waived] <- "waived"
-  findings$waiver_reason[is_waived] <- unname(waive[findings$rule_id[is_waived]])
+  # the reason is kept in front of the message
+  findings$message[is_waived] <- paste0(
+    "Waived (", unname(waive[findings$rule_id[is_waived]]), "): ",
+    findings$message[is_waived]
+  )
   rank <- match(findings$severity, severity_levels)
   findings <- findings[order(rank, findings$rule_id, findings$file), ]
   rownames(findings) <- NULL
@@ -234,6 +230,5 @@ finalise_findings <- function(findings, schema, waive) {
 
 report_columns <- function() {
   c("rule_id", "severity", "file", "column", "n_fail", "n_total",
-    "example_rows", "message", "guideline_ref", "class", "original_severity",
-    "waiver_reason")
+    "example_rows", "message", "guideline_ref")
 }

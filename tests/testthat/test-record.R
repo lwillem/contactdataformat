@@ -86,27 +86,27 @@ test_that("R39: diary_weight is numeric without missing values", {
   expect_hit(check_survey(text), "R39")
 })
 
-test_that("legacy 0/1 booleans warn, and still count as TRUE in R13", {
+test_that("legacy 0/1 booleans are an error, and still count as TRUE in R13", {
   tables <- valid_survey()
   loc <- c("cnt_home", "cnt_work", "cnt_school", "cnt_transport",
            "cnt_leisure", "cnt_otherplace")
   tables$contact[loc] <- lapply(tables$contact[loc], as.integer)
   report <- check_survey(tables)
-  expect_hit(report, "R08", "warning")
-  expect_false("R08" %in% hits(report, "error"))
+  expect_hit(report, "R08", "error")
+  expect_msg(report, "R08", "Legacy boolean")
   expect_false("R13" %in% hits(report))
-  expect_equal(report$status, "PASS WITH WARNINGS")
+  expect_equal(report$status, "FAIL")
   tables$contact[1, loc] <- 0L
   expect_hit(check_survey(tables), "R13")
 })
 
-test_that("legacy phys_contact 1/2 warns, Y/N and T/F are errors", {
+test_that("legacy phys_contact 1/2, Y/N and T/F are errors", {
   tables <- valid_survey()
   legacy <- tables
   legacy$contact$phys_contact <- ifelse(legacy$contact$phys_contact, 1L, 2L)
   report <- check_survey(legacy)
-  expect_hit(report, "R08", "warning")
-  expect_false("R08" %in% hits(report, "error"))
+  expect_hit(report, "R08", "error")
+  expect_msg(report, "R08", "Legacy boolean")
   for (code in list(c("Y", "N"), c("T", "F"), c("yes", "no"))) {
     bad <- tables
     bad$contact$phys_contact <- ifelse(bad$contact$phys_contact, code[1], code[2])
@@ -118,13 +118,15 @@ test_that("legacy phys_contact 1/2 warns, Y/N and T/F are errors", {
   expect_hit(check_survey(other), "R08")
 })
 
-test_that("the severity of the legacy boolean warning is a schema setting", {
+test_that("the severity of the legacy boolean error is a schema setting", {
   tables <- valid_survey()
   tables$contact$cnt_home <- as.integer(tables$contact$cnt_home)
   schema <- read_schema()
   idx <- which(purrr::map_chr(schema$rules, "id") == "R08")
-  schema$rules[[idx]]$severities$legacy_boolean <- "error"
-  expect_hit(check_survey(tables, schema = schema), "R08", "error")
+  schema$rules[[idx]]$severities$legacy_boolean <- "warning"
+  report <- check_survey(tables, schema = schema)
+  expect_hit(report, "R08", "warning")
+  expect_false("R08" %in% hits(report, "error"))
 })
 
 # Contact ID: cnt_id canonical, cont_id accepted legacy alias (R40) ------------

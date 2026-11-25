@@ -29,16 +29,16 @@ test_that("R08: column types and mandatory values", {
   boolean <- tables
   boolean$contact$phys_contact <- ifelse(boolean$contact$phys_contact, "Y", "N")
   boolean$contact$cnt_home <- ifelse(boolean$contact$cnt_home, "yes", "no")
-  # integer 0/1 is a legacy form: warning
+  # integer 0/1 is not allowed either: an error with its own message
   boolean$contact$cnt_work <- ifelse(boolean$contact$cnt_work, 1L, 0L)
   report <- check_survey(boolean)
   expect_hit(report, "R08")
   expect_msg(report, "R08", "TRUE or FALSE")
-  # text codes are errors; the legacy integer 0/1 is only a warning
   errors <- only_rule(report, "R08")
   expect_setequal(errors$column[errors$severity == "error"],
-                  c("phys_contact", "cnt_home"))
-  expect_equal(errors$column[errors$severity == "warning"], "cnt_work")
+                  c("phys_contact", "cnt_home", "cnt_work"))
+  expect_msg(report, "R08", "Legacy boolean")
+  expect_false("warning" %in% errors$severity)
 
   integer <- tables
   integer$participant$part_age_exact[1] <- 3.5
@@ -68,17 +68,28 @@ test_that("R09: enumerations and ranges", {
   expect_setequal(only_rule(report, "R09")$column, c("part_gender", "cnt_gender"))
 
   country <- tables
+  # text instead of a code (several countries, a region) is a warning
   country$hh$country[1] <- "XX"
-  expect_hit(check_survey(country), "R09")
-  # Namibia is valid even though the string NA looks like a missing token
+  expect_hit(check_survey(country), "R09", "warning")
+  expect_false("R09" %in% hits(check_survey(country), "error"))
+  expect_msg(check_survey(country), "R09", "several countries or a region")
+  country$hh$country[1] <- "multiple countries"
+  expect_hit(check_survey(country), "R09", "warning")
+  # country is required: NA (missing or the literal string) is an error
+  country$hh$country[1] <- NA
+  expect_hit(check_survey(country), "R08", "error")
+  expect_msg(check_survey(country), "R08", "Namibia is written NAM")
+  country$hh$country[1] <- "NA"
+  expect_hit(check_survey(country), "R09", "error")
+  expect_msg(check_survey(country), "R09", "never NA")
   ok <- tables
   ok$hh$country[1] <- "NO"
   expect_clean(check_survey(ok))
-  # Namibia: the alpha-3 code NAM is allowed, other alpha-3 codes are not
+  # Namibia: the alpha-3 code NAM is allowed; other alpha-3 codes are text
   ok$hh$country[1] <- "NAM"
   expect_clean(check_survey(ok))
   ok$hh$country[1] <- "BEL"
-  expect_hit(check_survey(ok), "R09")
+  expect_hit(check_survey(ok), "R09", "warning")
 
   range <- tables
   range$sday$dayofweek[1] <- 7L
@@ -242,15 +253,14 @@ test_that("holiday is optional in the survey-day file", {
   expect_false(any(grepl("holiday", only_rule(check_survey(without), "R25")$message)))
 })
 
-test_that("holiday accepts TRUE/FALSE and NA; 0/1 is a legacy warning", {
+test_that("holiday accepts TRUE/FALSE and NA; 0/1 is an error", {
   tables <- example_survey(with_holiday = TRUE)
   tables$sday$holiday[1:3] <- NA
   expect_clean(check_survey(tables))
   tables$sday$holiday <- as.integer(tables$sday$holiday)
   report <- check_survey(tables)
-  expect_hit(report, "R08", "warning")
-  expect_false("R08" %in% hits(report, "error"))
-  expect_equal(report$status, "PASS WITH WARNINGS")
+  expect_hit(report, "R08", "error")
+  expect_equal(report$status, "FAIL")
 })
 
 test_that("holiday with text codes is an error", {
@@ -262,7 +272,7 @@ test_that("holiday with text codes is an error", {
   expect_msg(report, "R08", "TRUE or FALSE")
 })
 
-test_that("holiday as quoted digits is a warning, not an error (legacy form)", {
+test_that("holiday as quoted digits is the legacy form and an error", {
   tables <- example_survey(with_holiday = TRUE)
   tables$sday$holiday <- as.integer(tables$sday$holiday)
   dir <- survey_dir(tables)
@@ -276,14 +286,13 @@ test_that("holiday as quoted digits is a warning, not an error (legacy form)", {
   })
   writeLines(c(lines[1], unlist(body)), file)
   report <- check_contact_data(dir, quiet = TRUE)
-  expect_hit(report, "R08", "warning")
-  expect_false("R08" %in% hits(report, "error"))
-  expect_equal(report$status, "PASS WITH WARNINGS")
+  expect_hit(report, "R08", "error")
+  expect_equal(report$status, "FAIL")
   expect_msg(report, "R08", "Legacy boolean")
 
   # unquoted digits are the same legacy form; TRUE/FALSE is clean
   unquoted <- survey_dir(tables)
-  expect_hit(check_contact_data(unquoted, quiet = TRUE), "R08", "warning")
+  expect_hit(check_contact_data(unquoted, quiet = TRUE), "R08", "error")
   tables$sday$holiday <- as.logical(tables$sday$holiday)
   expect_clean(check_contact_data(survey_dir(tables), quiet = TRUE))
 })

@@ -23,7 +23,7 @@ compatible_types <- function(schema_type) {
     integer = c("integer"),
     numeric = c("numeric", "integer"),
     string = c("string", "code"),
-    boolean = c("boolean", "integer"),  # integer: legacy 0/1 coding (R08 warns)
+    boolean = c("boolean", "integer"),  # integer: legacy 0/1 coding (R08 reports it)
     id = c("id", "string", "integer", "code"),
     code = c("code", "string", "integer", "id"),
     date_yyyymmdd = c("string", "date", "integer", "code"),

@@ -52,9 +52,14 @@ test_that("R26: personal identifiers in column names", {
   tables <- valid_survey()
   tables$participant_extra$surname <- "x"
   tables$participant_extra$phone_number <- "x"
+  tables$participant_extra$school_name <- "x"
   report <- check_survey(tables)
+  # direct identifiers are errors, the ambiguous token `name` a warning
+  expect_hit(report, "R26", "error")
   expect_hit(report, "R26", "warning")
-  expect_setequal(only_rule(report, "R26")$column, c("surname", "phone_number"))
+  r26 <- only_rule(report, "R26")
+  expect_setequal(r26$column[r26$severity == "error"], c("surname", "phone_number"))
+  expect_equal(r26$column[r26$severity == "warning"], "school_name")
 })
 
 test_that("R27: ZIP, address and coordinate columns are flagged", {

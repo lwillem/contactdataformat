@@ -81,6 +81,19 @@
     elapsed).
   * R10 (variant `empty_interval`, warning): equal lower and upper bound; the
     upper bound is exclusive, so the interval is empty.
+* Decisions of 25 Nov 2026 (evening):
+  * Booleans coded `0`/`1` (and `1`/`2` for `phys_contact`) are now an error
+    (R08 variant `legacy_boolean`, was a warning); the message names the
+    conversion. Published records that use 0/1 fail until converted.
+  * `country` is required and never `NA`: a literal `NA` is an error (the
+    alpha-2 code of Namibia is not accepted; write `NAM`), and the error message
+    says so. A value that is not an ISO alpha-2 code is a warning (R09 variant
+    `text`): text is allowed for several countries or a region.
+  * R26: direct personal identifiers (first/last name, e-mail, phone, birth
+    date, ssn, passport, iban) are an error (variant `direct`); the token `name`
+    alone (`school_name`, `dayofweek_name`) stays a warning. R27 (geography
+    columns) was already an error; value-based ZIP/coordinate guesses stay
+    warnings.
 * Catalogued but not yet implemented: R28-R33 (content of a restricted
   geography file), R36 (Zenodo record metadata, needs network) and R37
   (silent-failure columns, currently covered by R05).

@@ -76,7 +76,7 @@ rule_r07 <- function(ctx) {
   bind_findings(out)
 }
 
-# Legacy codes accepted (with a warning) for a boolean column
+# Legacy codes for a boolean column (read by socialmixr, reported as an error)
 boolean_legacy_values <- function(schema, spec) {
   unique(c(unlist(schema$types$boolean$legacy_values),
            unlist(spec$legacy_values)))
@@ -127,7 +127,8 @@ rule_r08 <- function(ctx) {
           message = paste0(
             "Legacy boolean coding ", show_values(x[legacy]), " (as in ",
             "POLYMOD, CoMix and Zenodo v1.2): socialmixr still reads it, ",
-            "but TRUE/FALSE is required for new datasets."
+            "but only TRUE/FALSE is allowed. Convert it (1 = TRUE, 0 = ",
+            "FALSE; for phys_contact in POLYMOD 1 = TRUE, 2 = FALSE)."
           )
         )
       }
@@ -138,7 +139,8 @@ rule_r08 <- function(ctx) {
         out[[length(out) + 1]] <- finding(
           "R08", file = file, column = spec$name, n_fail = length(missing),
           n_total = length(x), rows = missing,
-          message = "Missing values (`NA`) are not allowed in this column."
+          message = paste0("Missing values (`NA`) are not allowed in this column.",
+                           if (!is.null(spec$na_hint)) paste0(" ", spec$na_hint, "."))
         )
       }
     }
@@ -157,17 +159,34 @@ rule_r09 <- function(ctx) {
     allowed <- c(allowed, unlist(spec$enum_extra))
     if (length(allowed) > 0) {
       bad <- which(!is.na(x) & !x %in% allowed)
+      # a column that allows descriptive text (country: several countries, a
+      # region): text is a warning, the literal `NA` stays an error
+      text_ok <- isTRUE(spec$enum_text_allowed)
+      text_rows <- if (text_ok) bad[x[bad] != "NA"] else integer()
+      bad <- setdiff(bad, text_rows)
       if (length(bad) > 0) {
         shown <- if (length(allowed) <= 6) {
           paste0(" Allowed: ", paste(allowed, collapse = ", "), ".")
         } else {
           ""
         }
+        hint <- if (!is.null(spec$na_hint)) paste0(" ", spec$na_hint, ".") else ""
         out[[1]] <- finding(
           "R09", file = file, column = spec$name, n_fail = length(bad),
           n_total = length(x), rows = bad,
           message = paste0("Value(s) not allowed: ", show_values(x[bad]), ".",
-                           shown)
+                           shown, hint)
+        )
+      }
+      if (length(text_rows) > 0) {
+        out[[length(out) + 1]] <- finding(
+          "R09", variant = "text", file = file, column = spec$name,
+          n_fail = length(text_rows), n_total = length(x), rows = text_rows,
+          message = paste0(
+            "Not an ISO 3166-1 alpha-2 code: ", show_values(x[text_rows]),
+            ". Text is accepted when several countries or a region apply ",
+            "(describe it in the dictionary); for a single country use its code."
+          )
         )
       }
     }

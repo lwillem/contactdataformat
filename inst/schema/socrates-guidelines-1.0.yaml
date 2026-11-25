@@ -10,7 +10,7 @@
 # REVIEW_guidelines_vs_flanders2010.md (P1-P11, section 6A.2a/6A.7/6A.8):
 # `cnt_id` (legacy alias `cont_id`), `cnt_otherplace`, `part_age_exact`
 # (alias `part_age`), survey-day file keyed by `part_id`, no
-# `sday_id` in the contact file, TRUE/FALSE booleans (0/1 is a legacy form, warning), UTF-8,
+# `sday_id` in the contact file, TRUE/FALSE booleans (0/1 is an error), UTF-8,
 # optional columns may be absent, column order not enforced, no study metadata
 # file (socialmixr reads the first .json file of a record as its citation).
 
@@ -72,19 +72,17 @@ options:
 
 types:
   boolean:
-    # TRUE/FALSE is the only canonical form and required for new datasets.
-    # `legacy_values` (integer or quoted 0/1, as in POLYMOD, CoMix and Zenodo
-    # v1.2) are still read by socialmixr and reported as a warning (R08,
-    # variant legacy_boolean), so published records stay checkable. Text codes
-    # such as Y/N, T/F or yes/no are errors because filters would silently
-    # match nothing. A column can add to `legacy_values` (see phys_contact).
-    # (Q32: move `legacy_values` to `values` to accept them silently, or set
-    # the R08 `legacy_boolean` severity to error for new submissions.)
+    # TRUE/FALSE is the only accepted form. `legacy_values` (integer or quoted
+    # 0/1, as in POLYMOD, CoMix and Zenodo v1.2) are still read by socialmixr,
+    # but are an error (R08, variant legacy_boolean) with a message that names
+    # the conversion. Text codes such as Y/N, T/F or yes/no are errors too,
+    # because filters would silently match nothing. A column can add to
+    # `legacy_values` (see phys_contact).
     values: ["TRUE", "FALSE"]
     legacy_values: ["0", "1"]
     # values that count as TRUE when checking location logic (R13)
     true_values: ["TRUE", "1"]
-    description: "TRUE or FALSE (0/1 is a legacy form)"
+    description: "TRUE or FALSE (0/1 is not allowed)"
   integer:
     pattern: '^-?[0-9]+$'
     description: "Whole number"
@@ -112,7 +110,7 @@ code_lists:
     GU, GW, GY, HK, HM, HN, HR, HT, HU, ID, IE, IL, IM, IN, IO, IQ, IR, IS, IT,
     JE, JM, JO, JP, KE, KG, KH, KI, KM, KN, KP, KR, KW, KY, KZ, LA, LB, LC, LI,
     LK, LR, LS, LT, LU, LV, LY, MA, MC, MD, ME, MF, MG, MH, MK, ML, MM, MN, MO,
-    MP, MQ, MR, MS, MT, MU, MV, MW, MX, MY, MZ, NA, NC, NE, NF, NG, NI, NL, "NO",
+    MP, MQ, MR, MS, MT, MU, MV, MW, MX, MY, MZ, NC, NE, NF, NG, NI, NL, "NO",
     NP, NR, NU, NZ, OM, PA, PE, PF, PG, PH, PK, PL, PM, PN, PR, PS, PT, PW, PY,
     QA, RE, RO, RS, RU, RW, SA, SB, SC, SD, SE, SG, SH, SI, SJ, SK, SL, SM, SN,
     SO, SR, SS, ST, SV, SX, SY, SZ, TC, TD, TF, TG, TH, TJ, TK, TL, TM, TN, TO,
@@ -320,9 +318,13 @@ files:
         nullable: false
         enum_ref: iso3166_alpha2
         # Namibia: alpha-2 `NA` is read as missing by much software, so the
-        # alpha-3 code is allowed for it (a quoted "NA" is also accepted).
+        # alpha-3 code is used for it. A literal `NA` is never accepted.
         enum_extra: [NAM]
-        description: "ISO 3166-1 alpha-2 country code (NAM allowed for Namibia)"
+        # Required information. Text instead of a code (several countries, a
+        # region) is a warning, never an error; `NA` is an error.
+        enum_text_allowed: true
+        na_hint: "country is required and never NA. Namibia is written NAM; for several countries or a region, write text (e.g. `multiple countries` or the region)"
+        description: "ISO 3166-1 alpha-2 country code (NAM for Namibia); text if several countries or a region apply; never NA"
       - name: hh_size
         type: integer
         nullable: true
@@ -443,8 +445,12 @@ privacy:
   # province only, see Q20).
   geography_tokens_declared: [municipality, city, town, nis, gemeente, commune,
     postcode_name]
-  identifier_tokens: [name, firstname, lastname, surname, forename, email,
+  # Direct identifiers: an error (R26 variant direct).
+  identifier_tokens_direct: [firstname, lastname, surname, forename, email,
     phone, telephone, birthdate, birthday, dob, ssn, passport, iban]
+  # Ambiguous tokens (`school_name` is a place, `dayofweek_name` a label): a
+  # warning.
+  identifier_tokens: [name]
   # Whole-file names (tokens) that mark a restricted geography file.
   restricted_file_tokens: [geo, zip, zipcode, postcode, restricted,
     coordinates, address]
@@ -479,7 +485,7 @@ manual_items:
     prompt: "The dictionary states what a wave is (fixed round of the same panel, repeated multi-day measurement, or recruitment batch) and how `wave` relates to `panel_id`."
   - id: R25g
     title: "Zenodo record content"
-    prompt: "Zenodo title, description, dates and geographic scope are consistent with the data files."
+    prompt: "The Zenodo record follows the conventions of the guideline (creators as persons with family and given name, title, publication date, version, references, open files, Social Contact Data community), its description and geographic scope are consistent with the data files, and contactsurveys::get_citation() returns a correct citation."
 
 decisions:
   # Choices of the guideline and where the schema encodes them (`where` shows
@@ -533,8 +539,8 @@ decisions:
     where: "files.<id>.columns[].required"
   - id: Q32
     status: decided
-    topic: "Boolean coding: TRUE/FALSE required, 0/1 legacy warning (Q32)"
-    decision: "As Q6; 0/1 is a legacy form and a warning."
+    topic: "Boolean coding: TRUE/FALSE required, 0/1 is an error (Q32)"
+    decision: "As Q6; 0/1 is not allowed and an error (revised 2026-11-25; was a legacy warning). Published records that use 0/1 fail R08 until they are converted."
     where: "types.boolean.values; types.boolean.legacy_values; rules.R08.severities.legacy_boolean"
   - id: Q34
     status: decided
@@ -584,8 +590,18 @@ decisions:
   - id: Q40
     status: open
     topic: "Zenodo metadata strictness (version string, References)"
-    decision: "Not decided."
-    where: "(not yet encoded)"
+    decision: "Conventions written down 2026-11-25 in main.tex (section on the Zenodo record), in line with what contactsurveys::get_citation() and download_survey() read: creators as persons with family and given name, title, publication date, version, references, open files, community. Automatic check (R36) still planned."
+    where: "(R25g manual item; R36 planned)"
+  - id: COUNTRY
+    status: decided
+    topic: "Country column: required, never NA; text for several countries or a region"
+    decision: "Decided 2026-11-25: country is required. ISO alpha-2 (NAM for Namibia); a literal NA is an error; several countries or a region are written as text (warning R09 variant text), described in the dictionary."
+    where: "files.hh_common.columns[country]; rules.R09.severities.text"
+  - id: PRIVACY
+    status: decided
+    topic: "Personal information in column names"
+    decision: "Checked 2026-11-25: direct identifiers (first/last name, e-mail, phone, birth date, ssn, passport, iban) are an error (R26 variant direct); the token name alone stays a warning (school_name, dayofweek_name); geography columns are an error (R27), value-based ZIP/coordinate guesses in other columns a warning."
+    where: "privacy.identifier_tokens_direct; privacy.identifier_tokens; rules.R26.severities.direct"
 
 rules:
   - id: R01
@@ -631,13 +647,14 @@ rules:
   - id: R08
     class: A
     severity: error
-    severities: {legacy_boolean: warning}
+    severities: {legacy_boolean: error}
     title: "Column types (integer, numeric, string, boolean TRUE/FALSE)"
     ref: "main.tex sec. 4"
   - id: R09
     class: A
     severity: error
-    title: "Enumerations and value ranges"
+    severities: {text: warning}
+    title: "Enumerations and value ranges (a descriptive text in country is a warning)"
     ref: "main.tex sec. 4"
   - id: R10
     class: A
@@ -752,7 +769,8 @@ rules:
   - id: R26
     class: H
     severity: warning
-    title: "No personal identifiers among column names"
+    severities: {direct: error}
+    title: "No personal identifiers among column names (direct identifiers: error; `name`: warning)"
     ref: "REVIEW 6.6"
   - id: R27
     class: A

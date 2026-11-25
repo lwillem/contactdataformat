@@ -199,14 +199,23 @@ non_schema_columns <- function(ctx) {
 }
 
 rule_r26 <- function(ctx) {
-  tokens <- unlist(ctx$schema$privacy$identifier_tokens)
+  direct <- unlist(ctx$schema$privacy$identifier_tokens_direct)
+  ambiguous <- unlist(ctx$schema$privacy$identifier_tokens)
   out <- list()
   for (item in non_schema_columns(ctx)) {
-    if (any(name_tokens(item$column) %in% tokens)) {
+    tokens <- name_tokens(item$column)
+    is_direct <- any(tokens %in% direct)
+    if (is_direct || any(tokens %in% ambiguous)) {
       out[[length(out) + 1]] <- finding(
-        "R26", file = file_label(ctx, item$id), column = item$column,
-        message = paste0("Column name suggests a personal identifier; remove ",
-                         "it or justify it in the dictionary.")
+        "R26", variant = if (is_direct) "direct" else "default",
+        file = file_label(ctx, item$id), column = item$column,
+        message = if (is_direct) {
+          paste0("Column name suggests a direct personal identifier; it must ",
+                 "not be in a public record: remove it.")
+        } else {
+          paste0("Column name suggests a personal identifier; remove it or ",
+                 "justify it in the dictionary.")
+        }
       )
     }
   }

@@ -1,5 +1,10 @@
 # contactdataformat (development version)
 
+* Adds `run_check()`: one call that checks a dataset folder, or every dataset
+  sub-folder of a parent folder, writes the reports (`csv`, `md`, `json`) and
+  `check_summary.csv` outside the dataset folders, and prints the summary. An
+  example script for RStudio is installed in `inst/examples/run_check_example.R`.
+
 ## 26 Nov 2026 (checker and guideline text)
 
 * The report status `FAIL` is now `MANDATORY UPDATES NEEDED` (`passed` is unchanged).

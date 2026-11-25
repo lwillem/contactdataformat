@@ -23,7 +23,11 @@ pak::pak("lwillem/contactdataformat")
 ```r
 library(contactdataformat)
 
-report <- check_contact_data("path/to/NAMETAG_dataset_folder")
+run <- run_check("path/to/folder")   # one dataset folder, or a folder with one sub-folder per dataset:
+                             # checks, writes a report per dataset + check_summary.csv, prints the summary
+# example script for RStudio: system.file("examples", "run_check_example.R", package = "contactdataformat")
+
+report <- check_contact_data("path/to/NAMETAG_dataset_folder")   # one dataset, nothing written
 report                       # status PASS / PASS WITH WARNINGS / MANDATORY UPDATES NEEDED (errors must be fixed; a record with only warnings can be submitted)
 summary(report)
 as.data.frame(report)        # findings: rule_id, severity, file, column, ...

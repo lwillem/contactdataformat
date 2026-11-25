@@ -21,6 +21,32 @@ scientific quality, and it never modifies the data.
 library(contactdataformat)
 ```
 
+`write_survey()` writes the dictionary as a `.csv` file, but the dictionary of
+a published record must be a spreadsheet (`.xlsx`, one sheet per file). This
+helper writes a synthetic survey and converts the dictionary, so the examples
+below look like a real record.
+
+```{r helper}
+write_record <- function(tables, dir, nametag) {
+  write_survey(tables, dir, nametag = nametag)
+  csv <- file.path(dir, paste0(nametag, "_dictionary.csv"))
+  if (!requireNamespace("openxlsx", quietly = TRUE) || !file.exists(csv)) {
+    return(invisible(dir))
+  }
+  wb <- openxlsx::createWorkbook()
+  for (id in unique(tables$dictionary$file)) {
+    sheet <- tables$dictionary[tables$dictionary$file == id,
+                               c("variable", "description", "type", "values")]
+    names(sheet) <- c("Variable", "Description", "Data type", "Allowed values")
+    openxlsx::addWorksheet(wb, id)
+    openxlsx::writeData(wb, id, sheet)
+  }
+  openxlsx::saveWorkbook(wb, file.path(dir, paste0(nametag, "_dictionary.xlsx")))
+  file.remove(csv)
+  invisible(dir)
+}
+```
+
 ## A valid dataset
 
 `example_survey()` builds a small, fully synthetic dataset. `write_survey()`
@@ -28,7 +54,7 @@ writes it in the guideline file layout.
 
 ```{r valid}
 dir <- withr::local_tempdir()
-write_survey(example_survey(), dir, nametag = "DOE_2012_BELGIUM")
+write_record(example_survey(), dir, "DOE_2012_BELGIUM")
 list.files(dir)
 
 report <- check_contact_data(dir, quiet = TRUE)
@@ -54,7 +80,7 @@ tables$contact[1, c("cnt_home", "cnt_work", "cnt_school", "cnt_transport",
 tables$participant_extra$zip_code <- "1000"
 
 bad <- withr::local_tempdir()
-write_survey(tables, bad, nametag = "DOE_2012_BELGIUM")
+write_record(tables, bad, "DOE_2012_BELGIUM")
 check_contact_data(bad, quiet = TRUE)
 ```
 
@@ -68,13 +94,53 @@ out <- report_write(check_contact_data(bad, quiet = TRUE),
 head(readLines(out), 3)
 ```
 
-## Booleans: TRUE/FALSE, legacy 0/1 is a warning
+## Several datasets at once: `run_check()`
+
+`run_check()` is the one-call entry point for RStudio and scripts. Point it at
+a folder with one sub-folder per dataset (one NAMETAG per sub-folder), or at a
+single dataset folder. It checks every dataset, writes a report per dataset
+and a table `check_summary.csv`, and prints the summary. The data are only
+read: the reports go to a separate folder (`check_reports` next to or inside
+the folder you give), never into a dataset folder.
+
+```{r run-check}
+root <- withr::local_tempdir()
+dir.create(file.path(root, "DOE_2012_BELGIUM"))
+dir.create(file.path(root, "ROE_2013_FRANCE"))
+write_record(example_survey(), file.path(root, "DOE_2012_BELGIUM"),
+             "DOE_2012_BELGIUM")
+write_record(tables, file.path(root, "ROE_2013_FRANCE"), "ROE_2013_FRANCE")
+
+run <- run_check(root)
+list.files(run$output_dir)
+```
+
+The result is a `socrates_run` object (returned invisibly): `run$summary` has
+one row per dataset, `run$reports` holds the full reports, named by dataset.
+
+```{r run-check-details}
+run$summary
+as.data.frame(run$reports[["ROE_2013_FRANCE"]])[, c("rule_id", "severity", "column")]
+```
+
+Useful arguments: `output_dir` (where the reports go), `formats` (any of
+`"csv"`, `"md"`, `"json"`), `write = FALSE` (only print and return),
+`show = "errors"` or `"all"` (print the findings per dataset, not only the
+summary), `smoke_test = TRUE`, and the arguments of `check_contact_data()`
+such as `skip` and `waive`. An example script for RStudio, which installs the
+package when needed, is installed with the package:
+
+```{r example-script, eval = FALSE}
+file.edit(system.file("examples", "run_check_example.R",
+                      package = "contactdataformat"))
+```
+
+## Booleans: TRUE/FALSE only
 
 Yes/no variables (locations, `phys_contact`, `holiday`, ...) are written as
-`TRUE` or `FALSE`. The legacy `0`/`1` coding of older records (POLYMOD, CoMix,
-Zenodo v1.2) is still read by `socialmixr`, so it is reported as a warning, not
-an error. Text codes such as `Y`/`N` or `yes`/`no` are errors, because filters
-would silently match nothing.
+`TRUE` or `FALSE`, and nothing else. The legacy `0`/`1` coding of older records
+(POLYMOD, CoMix, Zenodo v1.2) and text codes such as `Y`/`N` or `yes`/`no` are
+errors (rule R08), because filters would silently match nothing.
 
 ```{r boolean}
 legacy <- example_survey()
@@ -147,4 +213,7 @@ point to the folder, for example through an environment variable:
 
 ```{r flanders, eval = FALSE}
 check_contact_data(Sys.getenv("CONTACTDATAFORMAT_FLANDERS_DIR"))
+
+# or all datasets in a folder, with reports written next to it
+run_check("path/to/folder_with_datasets")
 ```

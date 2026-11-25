@@ -17,6 +17,13 @@
   is: rename a misspelling (`cnt_others`), remove a column that belongs to
   another table (`sday_id`), or move a survey-specific variable to the extra file.
 * The manual item R03 (NAMETAG content) is removed.
+* `hh_size` may be categorical (decision Q54): a count, an open-ended category
+  `5+`, or `nursing home`; other text is an error (R08).
+* Dictionary layout (decision Q53): the guideline asks for the header
+  `variable | description | type | values` in row 1 and the types `integer`,
+  `numeric`, `string`, `boolean`, `date`, `code`. R15 reports other layouts and
+  type words as notes (variants `layout`, `type_word`) and names the column a
+  misspelled dictionary entry looks like.
 * Dictionary reader: a sheet may start with a title block; the header row is
   searched in the first 20 rows, `Allowed values / coding` is accepted, and
   Office lock files (`~$...`) are ignored.

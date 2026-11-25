@@ -365,3 +365,22 @@ test_that("R10: an interval with equal bounds is empty (upper bound exclusive)",
   expect_false("R10" %in% hits(report, "error"))
   expect_msg(report, "R10", "empty")
 })
+
+test_that("hh_size accepts counts, N+ and nursing home", {
+  tables <- valid_survey()
+  tables$hh$hh_size <- as.character(tables$hh$hh_size)
+  tables$hh$hh_size[1:3] <- c("5+", "nursing home", "12")
+  tables$dictionary$type[tables$dictionary$variable == "hh_size"] <- "string"
+  report <- check_survey(tables)
+  expect_false("R08" %in% hits(report, "error"))
+  expect_false("R19" %in% hits(report))
+
+  tables$hh$hh_size[4] <- "many"
+  tables$hh$hh_size[5] <- "5 +"
+  report <- check_survey(tables)
+  expect_hit(report, "R08")
+  expect_msg(report, "R08", "nursing home")
+
+  tables$hh$hh_size[4:5] <- c("99", "3")
+  expect_hit(check_survey(tables), "R07", "warning")
+})

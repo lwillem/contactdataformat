@@ -21,6 +21,7 @@ compatible_types <- function(schema_type) {
   switch(
     schema_type,
     integer = c("integer"),
+    count_or_category = c("integer", "string", "code"),
     numeric = c("numeric", "integer"),
     string = c("string", "code"),
     boolean = c("boolean", "integer"),  # integer: legacy 0/1 coding (R08 reports it)
@@ -58,6 +59,7 @@ rule_r15 <- function(ctx) {
     )
   }
   data <- dict$data
+  out <- c(out, dictionary_layout_findings(ctx, dict, file))
   for (id in names(ctx$tables)) {
     columns <- names(ctx$tables[[id]])
     entries <- data[data$file == id, , drop = FALSE]
@@ -80,10 +82,20 @@ rule_r15 <- function(ctx) {
     }
     phantom <- setdiff(entries$variable, columns)
     if (length(phantom) > 0) {
+      # a documented name that is a near-miss of an undocumented column: the
+      # dictionary spelling is wrong (stray space, case)
+      hints <- vapply(phantom, function(name) {
+        found <- similar_name(name, undocumented)
+        if (length(found) == 0) "" else paste0(" (looks like `", found[1], "`)")
+      }, character(1))
       out[[length(out) + 1]] <- finding(
         "R15", variant = "phantom", file = file, n_fail = length(phantom),
         message = paste0("Dictionary describes variable(s) that are not in `",
-                         id, "`: ", collapse_names(phantom), ".")
+                         id, "`: ",
+                         paste0("`", phantom, "`", hints, collapse = ", "),
+                         ".", if (any(nzchar(hints))) {
+                           " Variable names must match the CSV header exactly."
+                         } else "")
       )
     }
     for (spec in schema_columns(schema, id)) {
@@ -101,6 +113,58 @@ rule_r15 <- function(ctx) {
     }
   }
   bind_findings(out)
+}
+
+# Notes on the dictionary layout: header row, column names, type words
+dictionary_layout_findings <- function(ctx, dict, file) {
+  out <- list()
+  header <- paste0("`", paste(dictionary_header_names(ctx$schema),
+                              collapse = " | "), "`")
+  known <- names(ctx$tables)
+  # one finding per kind of deviation, listing the sheets concerned
+  problems <- list()
+  for (item in dict$layout) {
+    if (!item$file %in% known) next
+    parts <- character()
+    if (item$header_row > 1L) {
+      parts <- c(parts, paste0("the header is in row ", item$header_row))
+    }
+    if (length(item$names) > 0) {
+      parts <- c(parts, paste0("the columns are called ",
+                               collapse_names(item$names)))
+    }
+    what <- paste(parts, collapse = " and ")
+    problems[[what]] <- c(problems[[what]], item$file)
+  }
+  for (what in names(problems)) {
+    out[[length(out) + 1]] <- finding(
+      "R15", variant = "layout", file = file,
+      n_fail = length(problems[[what]]),
+      message = paste0(
+        "Sheet(s) ", collapse_names(problems[[what]]), ": ", what,
+        ". The guideline layout is the header ", header, " in row 1, with ",
+        "notes on a separate INDEX or README sheet. The sheets were read ",
+        "anyway."
+      )
+    )
+  }
+  recommended <- c("integer", "numeric", "string", "boolean", "date", "code")
+  data <- dict$data
+  words <- tolower(sub("^([A-Za-z]+).*$", "\\1", trimws(data$type)))
+  words <- words[!is.na(data$type) & data$file %in% known]
+  other <- table(words[!words %in% recommended])
+  if (length(other) > 0) {
+    out[[length(out) + 1]] <- finding(
+      "R15", variant = "type_word", file = file,
+      message = paste0(
+        "Data types should be one of ",
+        paste0("`", recommended, "`", collapse = ", "), "; found ",
+        paste0("`", names(other), "` (", as.integer(other), ")",
+               collapse = ", "), ". Accepted as synonyms where recognised."
+      )
+    )
+  }
+  out
 }
 
 rule_r16 <- function(ctx) {

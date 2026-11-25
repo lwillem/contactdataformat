@@ -17,11 +17,11 @@ test_that("R15: dictionary completeness", {
   expect_false("R15" %in% hits(report, "error"))
 
   wrong_type <- tables
-  wrong_type$dictionary$type[wrong_type$dictionary$variable == "hh_size"] <-
+  wrong_type$dictionary$type[wrong_type$dictionary$variable == "cnt_age_exact"] <-
     "string"
   expect_hit(check_survey(wrong_type), "R15", "warning")
   fine_type <- tables
-  fine_type$dictionary$type[fine_type$dictionary$variable == "hh_size"] <-
+  fine_type$dictionary$type[fine_type$dictionary$variable == "cnt_age_exact"] <-
     "integer (count)"
   expect_clean(check_survey(fine_type))
 

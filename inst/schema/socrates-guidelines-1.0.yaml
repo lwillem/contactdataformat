@@ -89,6 +89,11 @@ types:
   numeric:
     pattern: '^-?[0-9]+(\.[0-9]+)?([eE][-+]?[0-9]+)?$'
     description: "Number with '.' as decimal separator"
+  # Household size: a count, an open-ended category such as 5+ (five or more)
+  # or the word `nursing home` (institutional household).
+  count_or_category:
+    pattern: '^([0-9]+\+?|nursing home)$'
+    description: "Whole number, an open-ended category such as 5+, or the text `nursing home`"
   id:
     pattern: '^[^\s,"]+$'
     description: "Identifier: string or integer, no whitespace or commas"
@@ -326,11 +331,11 @@ files:
         na_hint: "country is required and never NA. Namibia is written NAM; for several countries or a region, write text (e.g. `multiple countries` or the region)"
         description: "ISO 3166-1 alpha-2 country code (NAM for Namibia); text if several countries or a region apply; never NA"
       - name: hh_size
-        type: integer
+        type: count_or_category
         nullable: true
         range: [1, 100]
         placeholder_values: ["99"]
-        description: "Household size (count); NA if not collected"
+        description: "Household size: a count, or a category written as 5+ (five or more) or nursing home; NA if not collected"
 
   hh_extra:
     suffix: "hh_extra.csv"
@@ -539,6 +544,16 @@ decisions:
     topic: "cnt_age_multi dropped from the contact file"
     decision: "cnt_age_multi is removed: it only labels the category limits that cnt_age_est_min and cnt_age_est_max already hold, and socialmixr does not use it. In the three test datasets that have it (LOEDY, TSUZUKI, SON) it is either a label of exactly those two columns or entirely NA. A dataset that still carries it gets a specific R05 message."
     where: "files.contact_common.retired_columns"
+  - id: Q53
+    status: decided
+    topic: "Dictionary layout: header in row 1, fixed column names, type list, code = label"
+    decision: "One sheet per data file named like the file suffix; header variable | description | type | values in row 1 (notes on an INDEX or README sheet); types integer, numeric, string, boolean, date, code; values as `code = label`; dayofweek 0 = Sunday ... 6 = Saturday. The checker still reads other layouts and reports them as a note (R15 variants layout and type_word)."
+    where: "dictionary.fields; rules.R15.severities"
+  - id: Q54
+    status: decided
+    topic: "hh_size may be categorical (5+, nursing home)"
+    decision: "hh_size is a whole number, an open-ended category written N+ (e.g. 5+), or the text `nursing home`; other text is an error (R08). Categories are skipped by the range, R19 and R42 checks, which apply to the numeric values. The dictionary type is integer for counts and string when categories are used."
+    where: "types.count_or_category; files.hh_common.columns[hh_size]"
   - id: Q32
     status: decided
     topic: "Boolean coding: TRUE/FALSE required, 0/1 is an error (Q32)"
@@ -684,7 +699,7 @@ rules:
   - id: R15
     class: X
     severity: error
-    severities: {phantom: warning, type: warning, skipped: note}
+    severities: {phantom: warning, type: warning, layout: note, type_word: note, skipped: note}
     title: "Dictionary documents every column with required fields"
     ref: "main.tex sec. 4.5"
   - id: R16

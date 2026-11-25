@@ -324,3 +324,54 @@ test_that("the dictionary reader finds a header row below a title block", {
   expect_false(any(grepl("no sheet/section", only_rule(report, "R15")$message)))
   expect_clean(report)
 })
+
+test_that("R15 notes a dictionary layout that differs from the guideline", {
+  testthat::skip_if_not_installed("openxlsx")
+  testthat::skip_if_not_installed("readxl")
+  tables <- valid_survey()
+  write_dict <- function(dir, header, start_row = 1, type_word = NULL) {
+    dict <- tables$dictionary
+    if (!is.null(type_word)) dict$type[dict$type == "integer"] <- type_word
+    wb <- openxlsx::createWorkbook()
+    for (id in unique(dict$file)) {
+      sheet <- dict[dict$file == id, c("variable", "description", "type", "values")]
+      names(sheet) <- header
+      openxlsx::addWorksheet(wb, id)
+      if (start_row > 1) {
+        openxlsx::writeData(wb, id, "Title", startRow = 1, colNames = FALSE)
+      }
+      openxlsx::writeData(wb, id, sheet, startRow = start_row)
+    }
+    openxlsx::saveWorkbook(wb, file.path(dir, "DOE_2012_BELGIUM_dictionary.xlsx"),
+                           overwrite = TRUE)
+  }
+  notes <- function(dir) {
+    r15 <- only_rule(check_contact_data(dir, quiet = TRUE), "R15")
+    r15[r15$severity == "note", ]
+  }
+  dir <- survey_dir(tables)
+  write_dict(dir, c("variable", "description", "type", "values"))
+  expect_equal(nrow(notes(dir)), 0)
+
+  # letter case alone is not a deviation
+  write_dict(dir, c("Variable", "Description", "Type", "Values"))
+  expect_equal(nrow(notes(dir)), 0)
+
+  write_dict(dir, c("Variable", "Description", "Type", "Allowed values / coding"))
+  expect_true(any(grepl("columns are called", notes(dir)$message)))
+
+  write_dict(dir, c("variable", "description", "type", "values"), start_row = 3)
+  expect_true(any(grepl("header is in row 3", notes(dir)$message)))
+
+  write_dict(dir, c("variable", "description", "type", "values"),
+             type_word = "float")
+  expect_true(any(grepl("`float`", notes(dir)$message)))
+})
+
+test_that("R15 names the column a misspelled dictionary entry looks like", {
+  tables <- valid_survey()
+  tables$dictionary$variable[tables$dictionary$variable == "cnt_age_exact"] <-
+    "cnt_ age_exact"
+  report <- check_survey(tables)
+  expect_msg(report, "R15", "looks like `cnt_age_exact`")
+})

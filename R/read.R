@@ -382,6 +382,7 @@ read_dictionary <- function(file, nametag, schema) {
     }
   }
   out$data <- norm$data
+  out$layout <- norm$layout
   out$missing_fields <- setdiff(schema$dictionary$fields, norm$found_fields)
   out
 }
@@ -412,11 +413,38 @@ dictionary_sheet_table <- function(raw, max_rows = 20) {
   out <- raw[-seq_len(header_at), , drop = FALSE]
   names(out) <- header
   rownames(out) <- NULL
+  attr(out, "header_row") <- header_at
   out
+}
+
+# Names of the four dictionary columns of the guideline (the header of a
+# sheet should be exactly these, in row 1)
+dictionary_header_names <- function(schema) {
+  as.character(unlist(schema$dictionary$fields))
+}
+
+# Layout problems of one sheet: header not in row 1, or column names other
+# than the guideline names. NULL when the sheet follows the guideline.
+dictionary_layout <- function(sheet_table, nametag, sheet, schema) {
+  header <- names(sheet_table)
+  header <- header[!startsWith(header, "...")]
+  wanted <- dictionary_header_names(schema)
+  row <- attr(sheet_table, "header_row") %||% 1L
+  canon <- canonical_field(header)
+  recognised <- header[!is.na(canon) & canon %in% wanted]
+  # letter case alone is not a deviation (`Variable` for `variable`)
+  odd <- recognised[tolower(trimws(recognised)) !=
+                      canon[!is.na(canon) & canon %in% wanted]]
+  if (row == 1L && length(odd) == 0) {
+    return(NULL)
+  }
+  list(file = normalise_file_id(sheet, nametag), header_row = row,
+       names = odd)
 }
 
 read_excel_dictionary <- function(file, nametag, schema) {
   sheets <- readxl::excel_sheets(file)
+  layout <- list()
   pieces <- lapply(sheets, function(sheet) {
     raw <- as.data.frame(
       suppressMessages(
@@ -426,6 +454,7 @@ read_excel_dictionary <- function(file, nametag, schema) {
       stringsAsFactors = FALSE
     )
     d <- dictionary_sheet_table(raw)
+    layout <<- c(layout, list(dictionary_layout(d, nametag, sheet, schema)))
     d$file <- sheet
     d
   })
@@ -433,5 +462,5 @@ read_excel_dictionary <- function(file, nametag, schema) {
                    schema = schema)
   found <- unique(unlist(lapply(normed, `[[`, "found_fields")))
   list(data = do.call(rbind, lapply(normed, `[[`, "data")),
-       found_fields = found)
+       found_fields = found, layout = Filter(Negate(is.null), layout))
 }

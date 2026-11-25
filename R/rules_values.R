@@ -17,7 +17,8 @@ each_schema_column <- function(ctx, fun) {
 
 # Columns that hold numbers (not identifiers or category codes)
 is_measure <- function(spec) {
-  spec$type %in% c("integer", "numeric") && !isTRUE(spec$codes_in_dictionary)
+  spec$type %in% c("integer", "numeric", "count_or_category") &&
+    !isTRUE(spec$codes_in_dictionary)
 }
 
 rule_r07 <- function(ctx) {
